@@ -1,0 +1,6 @@
+{
+  "name": "NordBase.pt",
+  "description": "Local service coordination platform in Algarve, Portugal, launching operationally from Portimão.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

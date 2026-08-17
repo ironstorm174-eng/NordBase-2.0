@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 100" width="450" height="100">
+  <rect width="450" height="100" fill="#0B0E14" />
+  <!-- Compass Mark -->
+  <g transform="translate(10, 0)">
+    <path 
+      d="M 13.15 46.78 A 37 37 0 0 1 86.85 46.78" 
+      stroke="#FFFFFF" 
+      stroke-width="10" 
+      stroke-linecap="butt" 
+      fill="none"
+    />
+    <path 
+      d="M 86.85 53.22 A 37 37 0 0 1 13.15 53.22" 
+      stroke="#0066FF" 
+      stroke-width="10" 
+      stroke-linecap="butt" 
+      fill="none"
+    />
+    <g transform="rotate(28 50 50)">
+      <!-- Upper Needle Tip - Electric Blue -->
+      <polygon points="50,16 61.5,50 50,50" fill="#0066FF" />
+      <polygon points="50,16 38.5,50 50,50" fill="#1A75FF" />
+      <!-- Lower Needle Tip - White / Silver -->
+      <polygon points="50,84 61.5,50 50,50" fill="#CBD5E1" />
+      <polygon points="50,84 38.5,50 50,50" fill="#FFFFFF" />
+      <!-- Center pivot hole -->
+      <circle cx="50" cy="50" r="4.5" fill="#0B0E14" />
+    </g>
+  </g>
+  <!-- Text -->
+  <text x="110" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="800" font-size="52" letter-spacing="-1">
+    <tspan fill="#FFFFFF">Nord</tspan>
+    <tspan fill="#0066FF">Base</tspan>
+    <tspan fill="#64748B" font-size="34" font-weight="700">.pt</tspan>
+  </text>
+</svg>

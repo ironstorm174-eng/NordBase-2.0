@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /portugal
+Allow: /algarve
+Allow: /how-it-works
+Allow: /partner
+Allow: /knowledge-base
+
+Disallow: /pitch/
+Disallow: /pitch/*
+Disallow: /dashboard
+Disallow: /pro
+Disallow: /tpartner
+Disallow: /operator
+Disallow: /admin
+Disallow: /super-admin
+Disallow: /api/
+
+Sitemap: https://nordbase.pt/sitemap.xml
