@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { store } from '../store';
 import { 
   Building2, 
@@ -19,10 +19,13 @@ import {
   Sunrise,
   Sunset
 } from 'lucide-react';
+import { PORTUGAL_GEO } from '../lib/geo';
+
 interface TerritorialHubsManagerProps {
   currentRegion?: string;
   isSuperAdmin?: boolean;
 }
+
 export const TerritorialHubsManager: React.FC<TerritorialHubsManagerProps> = ({
   currentRegion,
   isSuperAdmin = false,
@@ -39,15 +42,40 @@ export const TerritorialHubsManager: React.FC<TerritorialHubsManagerProps> = ({
   const jobs = storeState.jobs || [];
   const specialists = storeState.specialists || [];
   const users = storeState.users || [];
+
+  // Determine effective region name
+  const effectiveRegion = currentRegion && currentRegion !== 'All' ? currentRegion : 'Algarve';
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>(currentRegion || 'All');
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>(
+    isSuperAdmin ? 'All' : effectiveRegion
+  );
   const [showCreateModal, setShowCreateModal] = useState(false);
+
   // Form State for New Hub
   const [newHubName, setNewHubName] = useState('');
   const [newHubCity, setNewHubCity] = useState('');
-  const [newHubRegion, setNewHubRegion] = useState(currentRegion || 'Big Lisboa');
+  const [newHubRegion, setNewHubRegion] = useState(effectiveRegion);
   const [newHubDistricts, setNewHubDistricts] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Keep newHubRegion in sync when modal opens
+  useEffect(() => {
+    if (showCreateModal && !isSuperAdmin && currentRegion) {
+      setNewHubRegion(currentRegion);
+    }
+  }, [showCreateModal, isSuperAdmin, currentRegion]);
+
+  const getRdCodeForRegion = (regionName: string) => {
+    const regLower = regionName.toLowerCase();
+    if (regLower.includes('lisboa city')) return 'Pt-RD-002';
+    if (regLower.includes('porto')) return 'Pt-RD-003';
+    if (regLower.includes('algarve')) return 'Pt-RD-004';
+    if (regLower.includes('lisboa')) return 'Pt-RD-001';
+    
+    const matched = PORTUGAL_GEO.find(g => g.name.toLowerCase() === regLower);
+    return matched ? matched.code : 'Pt-RD-004';
+  };
   // Filter hubs by region & search term
   const filteredHubs = hubs.filter((hub) => {
     const matchesRegion =
@@ -83,17 +111,14 @@ export const TerritorialHubsManager: React.FC<TerritorialHubsManagerProps> = ({
     try {
       const districtsArray = newHubDistricts
         ? newHubDistricts.split(',').map((d) => d.trim()).filter(Boolean)
-        : [newHubCity];
-      const rdCode = newHubRegion.toLowerCase().includes('lisboa city')
-        ? 'Pt-RD-002'
-        : newHubRegion.toLowerCase().includes('porto')
-        ? 'Pt-RD-003'
-        : newHubRegion.toLowerCase().includes('algarve')
-        ? 'Pt-RD-004'
-        : 'Pt-RD-001';
+        : [newHubCity.trim()];
+      
+      const regionToUse = !isSuperAdmin ? effectiveRegion : newHubRegion;
+      const rdCode = getRdCodeForRegion(regionToUse);
+
       store.createTerritorialHub(
         newHubName.trim(),
-        newHubRegion,
+        regionToUse,
         newHubCity.trim(),
         rdCode,
         districtsArray
@@ -415,18 +440,30 @@ export const TerritorialHubsManager: React.FC<TerritorialHubsManagerProps> = ({
               </div>
               <div>
                 <label className="block text-xs font-mono uppercase font-bold text-slate-400 mb-1.5">
-                  Region (RD)
+                  Region (RD Jurisdiction)
                 </label>
-                <select
-                  value={newHubRegion}
-                  onChange={(e) => setNewHubRegion(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-cyan-400 focus:outline-none"
-                >
-                  <option value="Big Lisboa">Big Lisboa (Pt-RD-001)</option>
-                  <option value="Lisboa City">Lisboa City (Pt-RD-002)</option>
-                  <option value="Porto">Porto Network (Pt-RD-003)</option>
-                  <option value="Algarve">Algarve (Pt-RD-004)</option>
-                </select>
+                {isSuperAdmin ? (
+                  <select
+                    value={newHubRegion}
+                    onChange={(e) => setNewHubRegion(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:border-cyan-400 focus:outline-none"
+                  >
+                    <option value="Big Lisboa">Big Lisboa (Pt-RD-001)</option>
+                    <option value="Lisboa City">Lisboa City (Pt-RD-002)</option>
+                    <option value="Porto">Porto Network (Pt-RD-003)</option>
+                    <option value="Algarve">Algarve (Pt-RD-004)</option>
+                  </select>
+                ) : (
+                  <div className="w-full bg-slate-950/90 border border-cyan-500/30 rounded-xl px-4 py-3 text-cyan-300 text-sm font-semibold flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span>{effectiveRegion} ({getRdCodeForRegion(effectiveRegion)})</span>
+                    </div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 font-bold">
+                      Your Region (Fixed)
+                    </span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-mono uppercase font-bold text-slate-400 mb-1.5">
