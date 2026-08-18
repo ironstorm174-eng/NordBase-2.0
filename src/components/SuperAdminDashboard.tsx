@@ -51,6 +51,7 @@ import {
   Radio,
   AlertCircle,
   RefreshCw,
+  Calculator,
 } from "lucide-react";
 import { PORTUGAL_GEO } from "../lib/geo";
 import { store } from "../store";
