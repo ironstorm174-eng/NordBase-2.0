@@ -604,6 +604,8 @@ export default function CreateOrderModal({
       {showHelperCalculator && (
         <NordBasePricingCalculator
           isModal={true}
+          initialCategory={category}
+          initialSpecialty={subcategory}
           onClose={() => setShowHelperCalculator(false)}
           onApply={(calc) => {
             setEstimatedValueStr(calc.totalOrderCost.toString());

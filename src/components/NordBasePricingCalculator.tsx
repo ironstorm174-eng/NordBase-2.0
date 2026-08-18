@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import {
   Calculator,
   Clock,
-  Euro,
   Wrench,
   Sparkles,
   Check,
@@ -16,6 +15,8 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
+import { ServiceCategory } from "../types";
+import { CATEGORY_SPECIALTIES } from "../data";
 
 export type SpecialistLevel = "L1" | "L2" | "L3";
 
@@ -59,20 +60,42 @@ export const SPECIALIST_LEVELS: Record<SpecialistLevel, SpecialistTierInfo> = {
   },
 };
 
-export const COMMON_SPECIALTIES = [
-  "Сантехника & Водопровод",
-  "Электрика & Освещение",
-  "Кондиционеры & Климат",
-  "Мастер на час (Handyman)",
-  "Ремонт бытовой техники",
-  "Вскрытие & Замена замков",
-  "Малярные & Отделочные работы",
-  "Клининг & Уборка",
-  "Видеонаблюдение & Домофоны",
-  "Сборка & Ремонт мебели",
+/**
+ * Exact 9 categories for which the NordBase hourly calculator is enabled.
+ */
+export const CALCULATOR_CATEGORIES: ServiceCategory[] = [
+  "Home Services",
+  "Cleaning",
+  "Gardening",
+  "Moving",
+  "Transport",
+  "Repairs",
+  "Construction",
+  "Pools",
+  "Hospitality",
 ];
 
+export const CALCULATOR_CATEGORY_DETAILS: Record<
+  ServiceCategory,
+  { labelRu: string; icon: string }
+> = {
+  "Home Services": { labelRu: "Home Services (Бытовой ремонт & монтаж)", icon: "🏠" },
+  "Cleaning": { labelRu: "Cleaning (Уборка & Клининг)", icon: "🧹" },
+  "Gardening": { labelRu: "Gardening (Сад & Ландшафт)", icon: "🪴" },
+  "Moving": { labelRu: "Moving (Переезды & Погрузка)", icon: "📦" },
+  "Transport": { labelRu: "Transport (Логистика & Доставка)", icon: "🚚" },
+  "Repairs": { labelRu: "Repairs (Ремонт техники & HVAC)", icon: "🔧" },
+  "Construction": { labelRu: "Construction (Строительство & Отделка)", icon: "🏗️" },
+  "Pools": { labelRu: "Pools (Бассейны & Водоподготовка)", icon: "🏊" },
+  "Hospitality": { labelRu: "Hospitality (Сервис & HoReCa)", icon: "🍽️" },
+  "Care": { labelRu: "Care (Уход)", icon: "❤️" },
+  "Lessons": { labelRu: "Lessons (Обучение)", icon: "📚" },
+  "Business": { labelRu: "Business (Услуги)", icon: "💼" },
+};
+
 export interface PricingCalculationResult {
+  category: ServiceCategory;
+  subcategory: string;
   specialty: string;
   level: SpecialistLevel;
   hourlyRate: number;
@@ -81,7 +104,7 @@ export interface PricingCalculationResult {
   rawLaborCost: number;
   laborCost: number; // Math.max(rawLaborCost, 50)
   isMinLaborApplied: boolean;
-  totalOrderCost: number; // laborCost + materialsCost
+  totalOrderCost: number; // laborCost
   leadFee: number;
   leadFeePercentage: number;
   leadTier: "tier1" | "tier2" | "tier3";
@@ -101,11 +124,11 @@ export interface PricingCalculationResult {
 export function calculateNordBasePricing(
   hours: number,
   level: SpecialistLevel,
-  materialsCost: number = 0,
-  specialty: string = "Общие работы"
+  _materialsCost: number = 0,
+  subcategory: string = "Plumber",
+  category: ServiceCategory = "Home Services"
 ): PricingCalculationResult {
   const safeHours = Math.max(2, Number(hours) || 2);
-  const safeMaterials = Math.max(0, Number(materialsCost) || 0);
   const tierInfo = SPECIALIST_LEVELS[level] || SPECIALIST_LEVELS.L2;
   const hourlyRate = tierInfo.hourlyRate;
 
@@ -113,7 +136,7 @@ export function calculateNordBasePricing(
   const laborCost = Math.max(50, rawLaborCost);
   const isMinLaborApplied = laborCost > rawLaborCost;
 
-  const totalOrderCost = laborCost + safeMaterials;
+  const totalOrderCost = laborCost;
 
   // Progressive lead fee based on totalOrderCost
   let leadFee = 0;
@@ -137,11 +160,13 @@ export function calculateNordBasePricing(
   const effectiveSpecialistRate = Math.round((specialistNetPayout / safeHours) * 100) / 100;
 
   return {
-    specialty,
+    category,
+    subcategory,
+    specialty: `${category} • ${subcategory}`,
     level,
     hourlyRate,
     hours: safeHours,
-    materialsCost: safeMaterials,
+    materialsCost: 0,
     rawLaborCost,
     laborCost,
     isMinLaborApplied,
@@ -155,6 +180,7 @@ export function calculateNordBasePricing(
 }
 
 interface NordBasePricingCalculatorProps {
+  initialCategory?: ServiceCategory | string;
   initialSpecialty?: string;
   initialLevel?: SpecialistLevel;
   initialHours?: number;
@@ -167,37 +193,68 @@ interface NordBasePricingCalculatorProps {
 }
 
 export default function NordBasePricingCalculator({
-  initialSpecialty = "Сантехника & Водопровод",
+  initialCategory,
+  initialSpecialty,
   initialLevel = "L2",
   initialHours = 2,
-  initialMaterials = 0,
   onApply,
   onClose,
   isModal = false,
   className = "",
   showTitle = true,
 }: NordBasePricingCalculatorProps) {
-  const [specialty, setSpecialty] = useState<string>(initialSpecialty);
-  const [customSpecialty, setCustomSpecialty] = useState<string>("");
+  // Resolve initial category
+  const resolvedCategory: ServiceCategory = useMemo(() => {
+    if (initialCategory && CALCULATOR_CATEGORIES.includes(initialCategory as ServiceCategory)) {
+      return initialCategory as ServiceCategory;
+    }
+    // Try to find category from initialSpecialty
+    if (initialSpecialty) {
+      for (const cat of CALCULATOR_CATEGORIES) {
+        if (CATEGORY_SPECIALTIES[cat]?.includes(initialSpecialty)) {
+          return cat;
+        }
+      }
+    }
+    return "Home Services";
+  }, [initialCategory, initialSpecialty]);
+
+  // Resolve initial subcategory
+  const resolvedSubcategory = useMemo(() => {
+    const available = CATEGORY_SPECIALTIES[resolvedCategory] || [];
+    if (initialSpecialty && available.includes(initialSpecialty)) {
+      return initialSpecialty;
+    }
+    return available[0] || "Plumber";
+  }, [resolvedCategory, initialSpecialty]);
+
+  const [category, setCategory] = useState<ServiceCategory>(resolvedCategory);
+  const [subcategory, setSubcategory] = useState<string>(resolvedSubcategory);
   const [level, setLevel] = useState<SpecialistLevel>(initialLevel);
   const [hours, setHours] = useState<number>(initialHours);
-  const [materials, setMaterials] = useState<number>(initialMaterials);
   const [copied, setCopied] = useState<boolean>(false);
 
-  const activeSpecialty = customSpecialty.trim() || specialty;
+  // Available subcategories for current category
+  const availableSubcategories = CATEGORY_SPECIALTIES[category] || [];
+
+  const handleCategoryChange = (newCat: ServiceCategory) => {
+    setCategory(newCat);
+    const subList = CATEGORY_SPECIALTIES[newCat] || [];
+    setSubcategory(subList[0] || "");
+  };
 
   const result = useMemo(() => {
-    return calculateNordBasePricing(hours, level, materials, activeSpecialty);
-  }, [hours, level, materials, activeSpecialty]);
+    return calculateNordBasePricing(hours, level, 0, subcategory, category);
+  }, [hours, level, subcategory, category]);
 
   const handleCopySummary = () => {
-    const text = `📋 NordBase Расчет Заказа
+    const text = `📋 NordBase Расчет Заказа (Почасовой)
 ━━━━━━━━━━━━━━━━━━━━
-🛠 Специальность: ${result.specialty}
+📁 Категория: ${result.category}
+🛠 Подкатегория: ${result.subcategory}
 ⭐ Уровень: ${SPECIALIST_LEVELS[result.level].nameEn} (€${result.hourlyRate}/ч)
-⏱ Объем: ${result.hours} ч (мин. 2 ч)
+⏱ Объем времени: ${result.hours} ч (мин. 2 ч)
 💰 Работы: €${result.laborCost.toFixed(2)}${result.isMinLaborApplied ? ' (мин. заказ €50)' : ''}
-📦 Материалы: €${result.materialsCost.toFixed(2)}
 ━━━━━━━━━━━━━━━━━━━━
 🎯 Итого клиенту: €${result.totalOrderCost.toFixed(2)}
 🏷 Стоимость лида / Комиссия: €${result.leadFee.toFixed(2)} (${result.leadFeePercentage}%)
@@ -229,7 +286,7 @@ export default function NordBasePricingCalculator({
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Единый расчет для TP, RP и SuperAdmin • Без ручного ввода комиссии
+                Категории и подкатегории синхронизированы с базой данных NordBase
               </p>
             </div>
           </div>
@@ -249,44 +306,53 @@ export default function NordBasePricingCalculator({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Controls */}
         <div className="space-y-5">
-          {/* 1. Specialty */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Wrench className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Специальность / Категория</span>
-            </label>
+          {/* 1. Category & Subcategory Selection */}
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>1. Категория Услуги ({CALCULATOR_CATEGORIES.length})</span>
+                </span>
+                <span className="text-[10px] text-cyan-400 font-mono">База NordBase</span>
+              </label>
 
-            <select
-              value={COMMON_SPECIALTIES.includes(specialty) ? specialty : "custom"}
-              onChange={(e) => {
-                if (e.target.value === "custom") {
-                  setSpecialty("Другое");
-                } else {
-                  setSpecialty(e.target.value);
-                  setCustomSpecialty("");
-                }
-              }}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
-            >
-              {COMMON_SPECIALTIES.map((spec) => (
-                <option key={spec} value={spec} className="bg-slate-900 text-white">
-                  {spec}
-                </option>
-              ))}
-              <option value="custom" className="bg-slate-900 text-white">
-                ✍️ Своя специальность...
-              </option>
-            </select>
+              <select
+                value={category}
+                onChange={(e) => handleCategoryChange(e.target.value as ServiceCategory)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+              >
+                {CALCULATOR_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat} className="bg-slate-900 text-white">
+                    {CALCULATOR_CATEGORY_DETAILS[cat]?.icon} {CALCULATOR_CATEGORY_DETAILS[cat]?.labelRu || cat}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {(!COMMON_SPECIALTIES.includes(specialty) || specialty === "Другое") && (
-              <input
-                type="text"
-                placeholder="Введите название специальности..."
-                value={customSpecialty}
-                onChange={(e) => setCustomSpecialty(e.target.value)}
-                className="w-full mt-2 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 transition-colors"
-              />
-            )}
+            <div>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Wrench className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>2. Подкатегория / Специализация</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {availableSubcategories.length} специальностей
+                </span>
+              </label>
+
+              <select
+                value={subcategory}
+                onChange={(e) => setSubcategory(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+              >
+                {availableSubcategories.map((sub) => (
+                  <option key={sub} value={sub} className="bg-slate-900 text-white">
+                    {sub}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* 2. Specialist Level */}
@@ -294,7 +360,7 @@ export default function NordBasePricingCalculator({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Уровень Специалиста</span>
+                <span>3. Уровень Специалиста</span>
               </label>
               <span className="text-xs font-mono font-bold text-cyan-400">
                 €{SPECIALIST_LEVELS[level].hourlyRate}/ч
@@ -338,111 +404,65 @@ export default function NordBasePricingCalculator({
             </p>
           </div>
 
-          {/* 3. Hours and Materials in 2 columns */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-            {/* Hours */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Часы (мин. 2)</span>
-                </label>
-                <span className="text-xs font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded-md">
-                  {hours} ч
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setHours((h) => Math.max(2, h - 1))}
-                  disabled={hours <= 2}
-                  className="w-9 h-9 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold disabled:opacity-40 hover:bg-slate-800 flex items-center justify-center transition-all cursor-pointer"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min={2}
-                  max={48}
-                  step={0.5}
-                  value={hours}
-                  onChange={(e) => setHours(Math.max(2, parseFloat(e.target.value) || 2))}
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl text-center py-2 text-sm font-mono font-bold text-white focus:outline-none focus:border-cyan-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setHours((h) => h + 1)}
-                  className="w-9 h-9 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold hover:bg-slate-800 flex items-center justify-center transition-all cursor-pointer"
-                >
-                  +
-                </button>
-              </div>
-
-              {/* Quick Hours Presets */}
-              <div className="flex gap-1.5">
-                {[2, 3, 4, 6, 8].map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    onClick={() => setHours(h)}
-                    className={`flex-1 py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
-                      hours === h
-                        ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300"
-                        : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    {h}ч
-                  </button>
-                ))}
-              </div>
+          {/* 3. Hours (Time-only calculation) */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-blue-400" />
+                <span>4. Время выполнения (часы, мин. 2ч)</span>
+              </label>
+              <span className="text-xs font-mono font-bold text-white bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-700">
+                {hours} ч = €{result.laborCost.toFixed(2)}
+              </span>
             </div>
 
-            {/* Materials */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Euro className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Материалы (€)</span>
-                </label>
-                <span className="text-xs font-mono font-bold text-emerald-400 bg-slate-800 px-2 py-0.5 rounded-md">
-                  €{materials.toFixed(2)}
-                </span>
-              </div>
-
-              <div className="relative">
-                <input
-                  type="number"
-                  min={0}
-                  step={5}
-                  placeholder="0.00"
-                  value={materials || ""}
-                  onChange={(e) => setMaterials(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm font-mono font-bold text-white focus:outline-none focus:border-emerald-500 pl-7"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-slate-500">
-                  €
-                </span>
-              </div>
-
-              {/* Quick Materials Presets */}
-              <div className="flex gap-1.5">
-                {[0, 15, 30, 50, 100].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMaterials(m)}
-                    className={`flex-1 py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
-                      materials === m
-                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                        : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    €{m}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setHours((h) => Math.max(2, h - 1))}
+                disabled={hours <= 2}
+                className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold disabled:opacity-40 hover:bg-slate-800 flex items-center justify-center transition-all cursor-pointer"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                min={2}
+                max={48}
+                step={0.5}
+                value={hours}
+                onChange={(e) => setHours(Math.max(2, parseFloat(e.target.value) || 2))}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl text-center py-2.5 text-base font-mono font-bold text-white focus:outline-none focus:border-cyan-500"
+              />
+              <button
+                type="button"
+                onClick={() => setHours((h) => h + 1)}
+                className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold hover:bg-slate-800 flex items-center justify-center transition-all cursor-pointer"
+              >
+                +
+              </button>
             </div>
+
+            {/* Quick Hours Presets */}
+            <div className="flex gap-1.5">
+              {[2, 3, 4, 5, 6, 8, 10, 12].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setHours(h)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer ${
+                    hours === h
+                      ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300"
+                      : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {h}ч
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400">
+              💡 Расчет строится строго по затраченному времени. Покупка материалов согласуется с клиентом отдельно.
+            </p>
           </div>
         </div>
 
@@ -452,37 +472,37 @@ export default function NordBasePricingCalculator({
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Прозрачный Расчет Заказа</span>
+                <span>Прозрачный Почасовой Расчет</span>
               </span>
-              <span className="text-[11px] font-mono text-cyan-400 font-semibold">
-                {result.specialty}
+              <span className="text-[11px] font-mono text-cyan-400 font-semibold truncate max-w-[200px]">
+                {result.category}
               </span>
             </div>
 
             {/* Line items */}
             <div className="space-y-2.5 mt-3 text-xs">
+              {/* Category & Subcategory info */}
+              <div className="flex justify-between items-center py-1 border-b border-white/5">
+                <span className="text-slate-400">Категория / Подкатегория</span>
+                <span className="font-semibold text-cyan-300 text-right">
+                  {result.category} • {result.subcategory}
+                </span>
+              </div>
+
               {/* Labor Row */}
               <div className="flex justify-between items-center py-1">
                 <div className="flex flex-col">
                   <span className="text-slate-300 font-medium">
-                    Стоимость работ ({result.hours} ч × €{result.hourlyRate})
+                    Оплата за время ({result.hours} ч × €{result.hourlyRate})
                   </span>
                   {result.isMinLaborApplied && (
                     <span className="text-[10px] text-amber-400 font-medium">
-                      ⚠️ Сработал минимум заказа (€50)
+                      ⚠️ Сработал минимальный заказ (€50)
                     </span>
                   )}
                 </div>
                 <span className="font-mono font-bold text-white text-sm">
                   €{result.laborCost.toFixed(2)}
-                </span>
-              </div>
-
-              {/* Materials Row */}
-              <div className="flex justify-between items-center py-1 border-t border-white/5">
-                <span className="text-slate-300 font-medium">Материалы и расходники</span>
-                <span className="font-mono font-bold text-slate-200">
-                  €{result.materialsCost.toFixed(2)}
                 </span>
               </div>
 
@@ -582,3 +602,4 @@ export default function NordBasePricingCalculator({
 
   return containerContent;
 }
+
