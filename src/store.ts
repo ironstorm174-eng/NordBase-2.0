@@ -238,7 +238,14 @@ class AppStore {
           });
         }
         if (data && Array.isArray(data.specialists)) {
-          const cleanServerSpecs = data.specialists.filter((s: any) => !isMockAccount(s));
+          const cleanServerSpecs = data.specialists.filter((s: any) => !isMockAccount(s)).map((serverS: any) => {
+            const localS = (this.state.specialists || []).find(s => s.id === serverS.id);
+            return {
+              ...localS,
+              ...serverS,
+              isGroupLead: serverS.isGroupLead ?? serverS.is_group_lead ?? localS?.isGroupLead ?? false
+            };
+          });
           const serverSpecIds = new Set(cleanServerSpecs.map((s: any) => s.id));
           const localOnlySpecs = (this.state.specialists || []).filter(s => !serverSpecIds.has(s.id) && !isMockAccount(s));
           this.state.specialists = [...cleanServerSpecs, ...localOnlySpecs];
@@ -264,7 +271,8 @@ class AppStore {
               ...localU,
               ...serverU,
               photoUrl,
-              avatar: photoUrl
+              avatar: photoUrl,
+              isGroupLead: serverU.isGroupLead ?? serverU.is_group_lead ?? localU?.isGroupLead ?? false
             };
           });
 
@@ -554,6 +562,42 @@ class AppStore {
   public addJob(job: Job) {
     this.state.jobs = [job, ...this.state.jobs];
     this.saveState();
+  }
+  public async updateJobGroupConfig(
+    jobId: string,
+    isGroupJob: boolean,
+    teamMembers: TeamMember[],
+    groupHours: number
+  ) {
+    const executionType = isGroupJob ? 'group' : 'individual';
+    const teamSize = isGroupJob ? teamMembers.length : 1;
+    const leadSpecialistId = isGroupJob ? (this.state.currentUser?.id || this.state.activeSpecialistId) : undefined;
+
+    this.state.jobs = this.state.jobs.map(j => {
+      if (j.id === jobId) {
+        return {
+          ...j,
+          executionType,
+          isGroupJob,
+          leadSpecialistId,
+          teamSize,
+          teamMembers: isGroupJob ? teamMembers : [],
+          groupHours: isGroupJob ? groupHours : undefined
+        };
+      }
+      return j;
+    });
+    this.saveState();
+
+    try {
+      await fetch(`/api/jobs/${jobId}/group-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ isGroupJob, teamMembers, groupHours })
+      });
+    } catch (e) {
+      console.error('Failed to sync job group config to backend:', e);
+    }
   }
   public subscribe(listener: StoreListener): () => void {
     this.listeners.add(listener);
@@ -1105,6 +1149,56 @@ class AppStore {
     }
     this.saveState();
   }
+  // Action: Toggle Group Lead Status for Specialist
+  public async toggleSpecialistGroupLead(specialistId: string, isGroupLead: boolean) {
+    if (!specialistId) return false;
+
+    // Update in specialists array
+    this.state.specialists = (this.state.specialists || []).map((s) => {
+      if (s.id === specialistId) {
+        return {
+          ...s,
+          isGroupLead,
+        };
+      }
+      return s;
+    });
+
+    // Update in users array
+    this.state.users = (this.state.users || []).map((u) => {
+      if (u.id === specialistId) {
+        return {
+          ...u,
+          isGroupLead,
+        };
+      }
+      return u;
+    });
+
+    // Update current user if matching
+    if (this.state.currentUser && (this.state.currentUser.id === specialistId || (this.state.currentUser as any).specialistId === specialistId)) {
+      this.state.currentUser = {
+        ...this.state.currentUser,
+        isGroupLead,
+      };
+    }
+
+    this.saveState();
+    this.notify();
+
+    // Persist to server backend API
+    try {
+      await fetch(`/api/specialists/${specialistId}/group-lead`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ isGroupLead })
+      });
+    } catch (e) {
+      console.warn('Error syncing group lead status to server:', e);
+    }
+
+    return isGroupLead;
+  }
   // Action: Request Specialist Verification
   public async requestVerification(userId: string) {
     try {
@@ -1260,7 +1354,10 @@ class AppStore {
     description: string,
     attachments: string[] = [],
     operatorId: string | null = null,
-    hubId?: string
+    hubId?: string,
+    isGroupJob?: boolean,
+    groupSize?: number,
+    groupLeadId?: string | null
   ): Promise<Job> {
     const knownCities = ['Portimão', 'Lagos', 'Faro', 'Lisboa', 'Albufeira', 'Sines', 'Cascais', 'Porto', 'Coimbra', 'Braga', 'Funchal', 'Tavira', 'Loulé', 'Olhão', 'Vilamoura'];
     let targetCity = this.state.selectedCity;
@@ -1272,6 +1369,9 @@ class AppStore {
     }
     targetCity = targetCity || 'Portimão';
     const autoOperator = operatorId || this.findMatchingOperatorForCity(targetCity)?.id || null;
+    const finalSize = isGroupJob ? Math.max(2, groupSize || 2) : null;
+    const finalMemberCount = finalSize ? finalSize - 1 : null;
+
     const newJob: Job = {
       id: `job-${Date.now()}`,
       category: this.state.selectedCategory || 'Home Services',
@@ -1289,12 +1389,17 @@ class AppStore {
       operatorId: autoOperator,
       hubId: hubId || undefined,
       attachments,
+      executionType: isGroupJob ? 'group' : 'individual',
+      isGroupJob: Boolean(isGroupJob),
+      groupLeadId: groupLeadId || null,
+      groupSize: finalSize,
+      groupMemberCount: finalMemberCount,
       messages: [
         {
           id: `msg-${Date.now()}-sys`,
           sender: 'system',
           senderName: 'System',
-          content: `Service request submitted for ${this.state.selectedCategory} in ${this.state.selectedCity}. A Territory Partner will call you shortly to verify details.`,
+          content: `Service request submitted for ${this.state.selectedCategory} in ${this.state.selectedCity}. ${isGroupJob ? `[TEAM REQUIRED: ${finalSize} people]` : ''} A Territory Partner will call you shortly to verify details.`,
           timestamp: new Date().toISOString(),
         },
       ],
@@ -1303,7 +1408,7 @@ class AppStore {
     try {
       const res = await fetch('/api/jobs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
         body: JSON.stringify({
           category: newJob.category,
           city: newJob.city,
@@ -1313,7 +1418,11 @@ class AppStore {
           customerPhone,
           attachments,
           operatorId,
-          hubId
+          hubId,
+          executionType: isGroupJob ? 'group' : 'individual',
+          isGroupJob: Boolean(isGroupJob),
+          groupSize: finalSize,
+          groupLeadId: groupLeadId || null
         })
       });
       if (res.ok) {
@@ -1802,9 +1911,15 @@ class AppStore {
     subcategory?: string,
     customerConfirmedValue?: boolean,
     attachments: string[] = [],
-    offeredSpecialistIds: string[] = []
+    offeredSpecialistIds: string[] = [],
+    isGroupJob?: boolean,
+    groupSize?: number,
+    groupLeadId?: string | null
   ): Promise<Job> {
     const initialStatus: JobStatus = offeredSpecialistIds.length > 0 ? 'offered' : 'pending_operator';
+    const finalSize = isGroupJob ? Math.max(2, groupSize || 2) : null;
+    const finalMemberCount = finalSize ? finalSize - 1 : null;
+
     const newJob: Job = {
       id: `job-${Date.now()}`,
       category,
@@ -1820,16 +1935,21 @@ class AppStore {
       createdAt: new Date().toISOString(),
       customerName,
       customerPhone,
-      unlockedBySpecialistId: null,
+      unlockedBySpecialistId: groupLeadId || null,
       operatorId,
       offeredSpecialistIds: offeredSpecialistIds.length > 0 ? offeredSpecialistIds : undefined,
       attachments,
+      executionType: isGroupJob ? 'group' : 'individual',
+      isGroupJob: Boolean(isGroupJob),
+      groupLeadId: groupLeadId || null,
+      groupSize: finalSize,
+      groupMemberCount: finalMemberCount,
       messages: [
         {
           id: `msg-${Date.now()}-sys`,
           sender: 'system',
           senderName: 'System',
-          content: `Order registered by Territory Partner from customer call. Job value: €${estimatedValue}. Lead price: €${leadPrice}. ${customerConfirmedValue ? 'Estimated price confirmed by customer.' : ''}`,
+          content: `Order registered by Territory Partner from customer call. Job value: €${estimatedValue}. Lead price: €${leadPrice}. ${customerConfirmedValue ? 'Estimated price confirmed by customer.' : ''} ${isGroupJob ? `[GROUP JOB: ${finalSize} people]` : ''}`,
           timestamp: new Date().toISOString(),
         },
       ],
@@ -1846,7 +1966,11 @@ class AppStore {
           description,
           customerName,
           customerPhone,
-          attachments
+          attachments,
+          executionType: isGroupJob ? 'group' : 'individual',
+          isGroupJob: Boolean(isGroupJob),
+          groupSize: finalSize,
+          groupLeadId: groupLeadId || null
         })
       });
       if (res.ok) {
@@ -1862,7 +1986,11 @@ class AppStore {
             estimatedValue,
             leadPrice,
             status: initialStatus,
-            offeredSpecialistIds
+            offeredSpecialistIds,
+            isGroupJob: Boolean(isGroupJob),
+            groupLeadId: groupLeadId || null,
+            groupSize: finalSize,
+            groupMemberCount: finalMemberCount
           })
         });
         await this.syncFromServer();

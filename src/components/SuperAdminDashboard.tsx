@@ -59,6 +59,7 @@ import Academy from "./Academy";
 import { KnowledgeEvolutionPanel } from "./KnowledgeEvolutionPanel";
 import TerritorialHubsManager from "./TerritorialHubsManager";
 import NetworkPortugalControlCenter from "./NetworkPortugalControlCenter";
+import CalculatorsPage from './calculators/CalculatorsPage';
 import NordBasePricingCalculator from "./NordBasePricingCalculator";
 
 export type SuperAdminModule = "network" | "personnel" | "operations" | "knowledge";
@@ -376,7 +377,7 @@ export default function SuperAdminDashboard({
     setActiveChatUserId(id);
   };
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20 p-6 sm:p-8 bg-[#181a20]/90 border border-slate-800/80 rounded-3xl shadow-2xl backdrop-blur-sm">
       {localAlert && (
         <div className={`p-4 rounded-2xl border text-sm font-bold shadow-lg transition-all animate-in fade-in ${
           localAlert.type === 'success' 
@@ -826,7 +827,7 @@ export default function SuperAdminDashboard({
       {/* VIEW: NORDBASE PRICING CALCULATOR */}
       {activeTab === "calculator" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <NordBasePricingCalculator />
+          <CalculatorsPage />
         </div>
       )}
 

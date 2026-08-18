@@ -5,6 +5,7 @@ import {
   Plus, 
   PhoneCall, 
   User, 
+  Users,
   Phone, 
   MapPin, 
   Briefcase, 
@@ -22,24 +23,10 @@ import { CATEGORY_SPECIALTIES } from '../data';
 import { store } from '../store';
 import { uploadImage } from '../utils/upload';
 import NordBasePricingCalculator, { calculateNordBasePricing, PricingCalculationResult } from './NordBasePricingCalculator';
+import { calculateLeadPrice } from '../utils/pricing';
+
 const CATEGORY_SUBCATEGORIES: Record<ServiceCategory, string[]> = CATEGORY_SPECIALTIES;
-function calculateLeadPrice(jobValue: number) {
-  const value = Math.max(50, Math.round(jobValue || 50));
-  let fee = 0;
-  let formulaText = '';
-  if (value <= 100) {
-    fee = Math.round(value * 0.20 * 100) / 100;
-    formulaText = '20% от суммы (до €100)';
-  } else if (value <= 200) {
-    fee = Math.round((20 + (value - 100) * 0.10) * 100) / 100;
-    formulaText = '€20 + 10% от суммы свыше €100';
-  } else {
-    fee = Math.round((30 + (value - 200) * 0.075) * 100) / 100;
-    formulaText = '€30 + 7.5% от суммы свыше €200';
-  }
-  const tpShare = Number((fee * 0.40).toFixed(2));
-  return { leadFee: fee, tpShare, formulaText, value };
-}
+
 interface CreateOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -63,6 +50,9 @@ export default function CreateOrderModal({
   const [specificLocation, setSpecificLocation] = useState('');
   const [category, setCategory] = useState<ServiceCategory>('Home Services');
   const [subcategory, setSubcategory] = useState(CATEGORY_SUBCATEGORIES['Home Services'][0]);
+  const [executionType, setExecutionType] = useState<'individual' | 'group'>('individual');
+  const [groupSize, setGroupSize] = useState<number>(2);
+  const [selectedGroupLeadId, setSelectedGroupLeadId] = useState<string>('');
   const [description, setDescription] = useState('');
   const [estimatedValueStr, setEstimatedValueStr] = useState('100');
   const [customerConfirmed, setCustomerConfirmed] = useState(true);
@@ -141,6 +131,10 @@ export default function CreateOrderModal({
       setErrorMsg('Please select at least one Specialist for a direct personal offer.');
       return;
     }
+    if (executionType === 'group' && groupSize < 2) {
+      setErrorMsg('Group jobs require at least 2 team members (1 Lead Specialist + 1 additional worker).');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const created = await store.createManualOperatorJob(
@@ -157,7 +151,10 @@ export default function CreateOrderModal({
         subcategory,
         customerConfirmed,
         attachments,
-        distributionMode === 'direct' ? selectedSpecialistIds : []
+        distributionMode === 'direct' ? selectedSpecialistIds : [],
+        executionType === 'group',
+        executionType === 'group' ? groupSize : undefined,
+        executionType === 'group' && selectedGroupLeadId ? selectedGroupLeadId : null
       );
       if (onOrderCreated && created) {
         onOrderCreated(created.id);
@@ -311,6 +308,103 @@ export default function CreateOrderModal({
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Execution Mode (Individual vs Group Job) */}
+            <div className="pt-2 border-t border-slate-800/80">
+              <label className="block text-xs font-bold text-slate-300 mb-2">
+                Execution Mode & Team Structure
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExecutionType('individual')}
+                  className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                    executionType === 'individual'
+                      ? 'bg-blue-950/60 border-cyan-500 text-white shadow-lg shadow-cyan-950/30'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <User className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-bold text-white">Individual Job</div>
+                    <div className="text-[11px] text-slate-400">1 Solo Specialist</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExecutionType('group')}
+                  className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                    executionType === 'group'
+                      ? 'bg-purple-950/60 border-purple-500 text-white shadow-lg shadow-purple-950/30'
+                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <Users className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      Group / Team Job
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300 font-mono">LEAD</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400">1 Group Lead + Workers</div>
+                  </div>
+                </button>
+              </div>
+
+              {executionType === 'group' && (
+                <div className="mt-3 p-3.5 bg-purple-950/30 border border-purple-800/40 rounded-xl space-y-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-purple-200">
+                        Total Team Size (Workers Needed) *
+                      </label>
+                      <p className="text-[11px] text-purple-300/80">
+                        Includes 1 Lead Specialist + {Math.max(1, groupSize - 1)} additional worker(s)
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setGroupSize(Math.max(2, groupSize - 1))}
+                        className="w-8 h-8 rounded-lg bg-slate-900 border border-purple-800/50 text-purple-300 flex items-center justify-center text-sm font-bold hover:bg-purple-900/50"
+                      >
+                        -
+                      </button>
+                      <span className="w-8 text-center text-sm font-bold text-white font-mono">{groupSize}</span>
+                      <button
+                        type="button"
+                        onClick={() => setGroupSize(groupSize + 1)}
+                        className="w-8 h-8 rounded-lg bg-slate-900 border border-purple-800/50 text-purple-300 flex items-center justify-center text-sm font-bold hover:bg-purple-900/50"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-purple-200 mb-1">
+                      Assign Registered Group Lead (Optional)
+                    </label>
+                    <select
+                      value={selectedGroupLeadId}
+                      onChange={(e) => setSelectedGroupLeadId(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-purple-800/50 bg-slate-950 text-white text-xs focus:outline-none focus:border-purple-400 font-medium"
+                    >
+                      <option value="">-- Open for any certified Group Lead --</option>
+                      {specialists
+                        .filter(s => s.isGroupLead)
+                        .map(s => (
+                          <option key={s.id} value={s.id}>
+                            👑 {s.name} ({s.category} - {s.city || 'Portugal'})
+                          </option>
+                        ))}
+                    </select>
+                    <p className="text-[10px] text-purple-400/80 mt-1">
+                      Only specialists with active Group Lead capability can accept or be assigned to Group Jobs.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5">

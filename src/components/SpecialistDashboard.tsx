@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AITranslatedMessage } from './AITranslatedMessage';
 import { AIMessagePolisher } from './AIMessagePolisher';
-import { Job, Specialist, ServiceCategory, AuthUser, SpecialistStatus, SpecialtyWithLevel } from '../types';
+import { Job, Specialist, ServiceCategory, AuthUser, SpecialistStatus, SpecialtyWithLevel, TeamMember, QualificationLevel } from '../types';
 import { CATEGORIES, CATEGORY_SPECIALTIES } from '../data';
 import { store } from '../store';
 import SpecialistOnboarding from './SpecialistOnboarding';
@@ -14,6 +14,8 @@ import MarketplaceSubscription from './MarketplaceSubscription';
 import MarketplaceServicesManager from './MarketplaceServicesManager';
 import Academy from './Academy';
 import SpecialistWelcomeNotice from './SpecialistWelcomeNotice';
+import CalculatorsPage from './calculators/CalculatorsPage';
+import { Calculator } from 'lucide-react';
 
 import { LocationSearchInput } from './LocationSearchInput';
 import { uploadImage } from '../utils/upload';
@@ -58,6 +60,7 @@ import {
   CheckCircle,
   CreditCard,
   User,
+  Users,
   Check,
   Plus,
   Trash,
@@ -67,6 +70,436 @@ import {
   X,
   GraduationCap,
   Calendar, LayoutList, ShieldCheck } from 'lucide-react';
+
+interface GroupJobTeamConfigProps {
+  job: Job;
+  activeSpecialist: Specialist | null;
+  currentUser: AuthUser | null;
+  onSaveConfig: (jobId: string, isGroupJob: boolean, teamMembers: TeamMember[], groupHours: number) => void;
+  lang: string;
+  t: (key: string, fallback?: string) => string;
+}
+
+const GroupJobTeamConfig: React.FC<GroupJobTeamConfigProps> = ({
+  job,
+  activeSpecialist,
+  currentUser,
+  onSaveConfig,
+  lang,
+  t
+}) => {
+  const isGroupLead = Boolean(activeSpecialist?.isGroupLead || currentUser?.isGroupLead);
+  
+  const leadQualification: QualificationLevel = 
+    (activeSpecialist?.tradeSkillLevel === 'expert' || currentUser?.tradeSkillLevel === 'expert')
+      ? 'expert'
+      : (activeSpecialist?.tradeSkillLevel === 'amateur' || currentUser?.tradeSkillLevel === 'amateur')
+        ? 'amateur'
+        : 'professional';
+
+  const getHourlyRate = (qual: QualificationLevel) => {
+    switch (qual) {
+      case 'amateur': return 20;
+      case 'professional': return 25;
+      case 'expert': return 30;
+      default: return 25;
+    }
+  };
+
+  const [isGroupJob, setIsGroupJob] = useState<boolean>(job.isGroupJob ?? false);
+  const [groupHours, setGroupHours] = useState<number>(job.groupHours || job.estimatedHours || 8);
+  const [isEditing, setIsEditing] = useState<boolean>(!job.isGroupJob);
+  const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+
+  const initialMembers = (): TeamMember[] => {
+    if (job.teamMembers && job.teamMembers.length > 0) {
+      return job.teamMembers;
+    }
+    return [
+      {
+        id: `lead-${activeSpecialist?.id || currentUser?.id || 'lead'}`,
+        role: 'lead',
+        qualificationLevel: leadQualification,
+        hourlyRate: getHourlyRate(leadQualification),
+        hours: groupHours,
+        name: activeSpecialist?.name || currentUser?.name || 'Lead Specialist'
+      },
+      {
+        id: `worker-${Date.now()}-1`,
+        role: 'worker',
+        qualificationLevel: 'professional',
+        hourlyRate: 25,
+        hours: groupHours,
+        name: 'Worker 1'
+      }
+    ];
+  };
+
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialMembers);
+
+  const handleHoursChange = (hours: number) => {
+    const validHours = Math.max(1, hours);
+    setGroupHours(validHours);
+    setTeamMembers(prev => prev.map(m => ({ ...m, hours: validHours })));
+  };
+
+  const handleLeadQualChange = (qual: QualificationLevel) => {
+    setTeamMembers(prev => prev.map(m => m.role === 'lead' ? { ...m, qualificationLevel: qual, hourlyRate: getHourlyRate(qual) } : m));
+  };
+
+  const handleWorkerQualChange = (memberId: string, qual: QualificationLevel) => {
+    setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, qualificationLevel: qual, hourlyRate: getHourlyRate(qual) } : m));
+  };
+
+  const handleAddWorker = () => {
+    const nextWorkerNum = teamMembers.filter(m => m.role === 'worker').length + 1;
+    const newWorker: TeamMember = {
+      id: `worker-${Date.now()}-${nextWorkerNum}`,
+      role: 'worker',
+      qualificationLevel: 'professional',
+      hourlyRate: 25,
+      hours: groupHours,
+      name: `Worker ${nextWorkerNum}`
+    };
+    setTeamMembers(prev => [...prev, newWorker]);
+  };
+
+  const handleRemoveWorker = (memberId: string) => {
+    if (teamMembers.length <= 2) return;
+    setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+  };
+
+  const handleSave = () => {
+    onSaveConfig(job.id, isGroupJob, isGroupJob ? teamMembers : [], groupHours);
+    setIsEditing(false);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  return (
+    <div className="p-5 bg-slate-950/60 rounded-2xl border border-blue-900/30 space-y-4 shadow-sm my-3" id={`group-config-${job.id}`}>
+      {/* Header */}
+      <div className="flex flex-wrap justify-between items-center gap-2">
+        <div className="flex items-center gap-2">
+          <span className="p-2 bg-blue-500/10 border border-blue-500/20 text-cyan-400 rounded-lg text-lg">
+            👥
+          </span>
+          <div>
+            <h5 className="text-sm font-display font-bold text-white flex items-center gap-2">
+              <span>{t('group.executionTitle', 'Job Execution Mode & Team Configuration')}</span>
+              {job.isGroupJob && (
+                <span className="px-2 py-0.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-mono font-bold rounded-full uppercase">
+                  Group Job
+                </span>
+              )}
+            </h5>
+            <p className="text-[11px] text-slate-400">
+              {t('group.executionSub', 'Configure whether this job is performed individually or by a team under your leadership.')}
+            </p>
+          </div>
+        </div>
+
+        {job.isGroupJob && !isEditing && (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="px-3 py-1.5 bg-blue-950/80 hover:bg-blue-900 text-cyan-300 border border-blue-800/50 rounded-xl text-xs font-bold transition-all cursor-pointer"
+          >
+            ✏️ {t('group.editTeam', 'Edit Team')}
+          </button>
+        )}
+      </div>
+
+      {savedSuccess && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center gap-2 animate-in fade-in duration-200 font-mono">
+          <span>✅</span>
+          <span>{t('group.savedSuccess', 'Team configuration successfully saved and persisted.')}</span>
+        </div>
+      )}
+
+      {/* Editing / Configuring Form */}
+      {isEditing ? (
+        <div className="space-y-4 pt-2 border-t border-blue-900/20">
+          {/* Execution Type Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              {t('group.selectType', 'Execution Type')}
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Individual Option */}
+              <button
+                type="button"
+                onClick={() => setIsGroupJob(false)}
+                className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                  !isGroupJob
+                    ? 'bg-blue-600/20 border-cyan-400 text-white shadow-md'
+                    : 'bg-slate-900/60 border-blue-900/30 text-slate-400 hover:text-white hover:border-blue-800'
+                }`}
+              >
+                <div className={`p-2 rounded-lg ${!isGroupJob ? 'bg-cyan-500 text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'}`}>
+                  👤
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-white block">
+                    {t('group.individualLabel', 'Individual Job')}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {t('group.individualSub', 'Executed solely by you as the assigned specialist.')}
+                  </span>
+                </div>
+              </button>
+
+              {/* Group Option */}
+              <div className="relative">
+                <button
+                  type="button"
+                  disabled={!isGroupLead}
+                  onClick={() => {
+                    if (isGroupLead) {
+                      setIsGroupJob(true);
+                    }
+                  }}
+                  className={`w-full p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 ${
+                    !isGroupLead
+                      ? 'bg-slate-900/30 border-slate-800 text-slate-600 opacity-60 cursor-not-allowed'
+                      : isGroupJob
+                      ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-md cursor-pointer'
+                      : 'bg-slate-900/60 border-blue-900/30 text-slate-400 hover:text-white hover:border-blue-800 cursor-pointer'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${isGroupJob && isGroupLead ? 'bg-cyan-400 text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'}`}>
+                    👥
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block flex items-center gap-1.5">
+                      <span>{t('group.groupLabel', 'Group Job (Team Execution)')}</span>
+                      {!isGroupLead && (
+                        <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 text-[9px] rounded font-mono font-normal">
+                          Inactive
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      {isGroupLead
+                        ? t('group.groupSubActive', 'Configure additional team workers under your leadership.')
+                        : t('group.groupSubInactive', 'Enable "Group Lead" status in Profile to unlock team jobs.')}
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Group Team Details (Only shown when Group is selected) */}
+          {isGroupJob && (
+            <div className="p-4 bg-slate-900/80 rounded-xl border border-cyan-500/30 space-y-4 animate-in fade-in duration-200">
+              {/* Hours Input */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-950/70 rounded-xl border border-blue-900/30">
+                <div>
+                  <label className="text-xs font-bold text-white block">
+                    ⏱️ {t('group.workingHours', 'Group Working Hours')}
+                  </label>
+                  <span className="text-[10px] text-slate-400 block">
+                    {t('group.workingHoursSub', 'Applies to Lead Specialist and all team members.')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={groupHours}
+                    onChange={(e) => handleHoursChange(parseInt(e.target.value) || 1)}
+                    className="w-20 px-3 py-1.5 bg-slate-950 border border-blue-800/60 rounded-lg text-white font-mono text-xs text-center focus:border-cyan-400 focus:outline-none"
+                  />
+                  <span className="text-xs font-mono text-slate-400">hours</span>
+                </div>
+              </div>
+
+              {/* Team Members List */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    {t('group.teamComposition', 'Team Composition')} ({teamMembers.length} members)
+                  </span>
+                  <span className="text-[10px] font-mono text-cyan-400">
+                    Lead: 1 • Workers: {teamMembers.length - 1}
+                  </span>
+                </div>
+
+                {teamMembers.map((member, index) => (
+                  <div
+                    key={member.id}
+                    className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+                      member.role === 'lead'
+                        ? 'bg-blue-950/50 border-blue-500/40 shadow-inner'
+                        : 'bg-slate-950/60 border-blue-900/30'
+                    }`}
+                  >
+                    {/* Left: Role & Name */}
+                    <div className="flex items-center gap-3">
+                      <div className={`p-1.5 rounded-lg text-xs font-bold ${member.role === 'lead' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-300'}`}>
+                        {member.role === 'lead' ? '👑 Lead' : `👷 Worker ${index}`}
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-white block">
+                          {member.role === 'lead'
+                            ? `${member.name} (You)`
+                            : `Additional Worker ${index}`}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono block">
+                          {member.role === 'lead' ? 'Responsible Registered Specialist' : 'Temporary Team Participant (No Account Needed)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right: Qualification Selector & Actions */}
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <label className="block text-[9px] font-mono text-slate-500 uppercase font-bold mb-0.5">
+                          Qualification
+                        </label>
+                        <select
+                          value={member.qualificationLevel}
+                          onChange={(e) => {
+                            const qual = e.target.value as QualificationLevel;
+                            if (member.role === 'lead') {
+                              handleLeadQualChange(qual);
+                            } else {
+                              handleWorkerQualChange(member.id, qual);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 bg-slate-900 border border-blue-800/60 rounded-lg text-xs font-semibold text-white focus:border-cyan-400 focus:outline-none cursor-pointer"
+                        >
+                          <option value="amateur">Amateur (€20/h)</option>
+                          <option value="professional">Professional (€25/h)</option>
+                          <option value="expert">Expert (€30/h)</option>
+                        </select>
+                      </div>
+
+                      {member.role === 'worker' && (
+                        <button
+                          type="button"
+                          disabled={teamMembers.length <= 2}
+                          onClick={() => handleRemoveWorker(member.id)}
+                          title={teamMembers.length <= 2 ? 'Minimum group team size is 2 (1 Lead + 1 Worker)' : 'Remove Worker'}
+                          className={`p-1.5 rounded-lg border text-xs font-bold transition-all ${
+                            teamMembers.length <= 2
+                              ? 'bg-slate-900/40 border-slate-800 text-slate-600 cursor-not-allowed'
+                              : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 cursor-pointer'
+                          }`}
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add Worker Button */}
+              <button
+                type="button"
+                onClick={handleAddWorker}
+                className="w-full py-2.5 px-4 bg-slate-950 hover:bg-slate-900 border border-dashed border-cyan-500/40 text-cyan-300 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>➕</span>
+                <span>{t('group.addWorker', 'Add Worker to Team')}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-2">
+            {job.isGroupJob && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                {t('common.cancel', 'Cancel')}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-cyan-500/20 transition-all cursor-pointer flex items-center gap-2"
+            >
+              <span>💾</span>
+              <span>{t('group.saveConfig', 'Save Team Configuration')}</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Saved / Read-Only View */
+        <div className="space-y-3 pt-1">
+          {job.isGroupJob ? (
+            <div className="p-4 bg-blue-950/40 rounded-xl border border-cyan-500/30 space-y-3 font-sans">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+                <div className="bg-slate-950/60 p-2.5 rounded-lg border border-blue-900/30">
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Total Team Size:</span>
+                  <span className="text-white font-bold">{job.teamSize || (job.teamMembers?.length || 2)} specialists</span>
+                </div>
+                <div className="bg-slate-950/60 p-2.5 rounded-lg border border-blue-900/30">
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Group Working Hours:</span>
+                  <span className="text-cyan-400 font-bold">{job.groupHours || job.estimatedHours || 8} hours</span>
+                </div>
+                <div className="bg-slate-950/60 p-2.5 rounded-lg border border-blue-900/30">
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold">Lead Specialist:</span>
+                  <span className="text-amber-300 font-bold truncate block">
+                    👑 {activeSpecialist?.name || currentUser?.name || 'Lead Specialist'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Team Breakdown */}
+              <div className="bg-slate-950/50 p-3 rounded-lg border border-blue-900/20 space-y-1.5">
+                <span className="text-[10px] font-mono text-cyan-400 block uppercase font-bold">
+                  Configured Team Roster:
+                </span>
+                <ul className="space-y-1 text-xs">
+                  {job.teamMembers && job.teamMembers.length > 0 ? (
+                    job.teamMembers.map((m, idx) => (
+                      <li key={m.id || idx} className="flex justify-between items-center text-slate-300 font-mono text-[11px]">
+                        <span className="flex items-center gap-1.5">
+                          <span className={m.role === 'lead' ? 'text-amber-400' : 'text-slate-400'}>
+                            {m.role === 'lead' ? '• Lead:' : `• Worker ${idx}:`}
+                          </span>
+                          <span className="text-white">{m.role === 'lead' ? (activeSpecialist?.name || 'Lead Specialist') : `Additional Worker ${idx}`}</span>
+                        </span>
+                        <span className="text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-blue-900/30 capitalize">
+                          {m.qualificationLevel} (€{m.hourlyRate || (m.qualificationLevel === 'expert' ? 30 : m.qualificationLevel === 'amateur' ? 20 : 25)}/h)
+                        </span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-slate-400 text-[11px] italic font-mono">
+                      Group team configuration set (Lead + Additional workers).
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-slate-900/40 rounded-xl border border-blue-900/20 text-xs text-slate-400 flex items-center justify-between">
+              <span>👤 {t('group.individualConfigured', 'This job is currently set to Individual execution.')}</span>
+              {isGroupLead && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="px-3 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-lg font-bold text-[11px] transition-all cursor-pointer"
+                >
+                  {t('group.switchToGroup', 'Configure as Group Job')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface SpecialistDashboardProps {
   specialists: Specialist[];
   jobs: Job[];
@@ -117,7 +550,7 @@ export default function SpecialistDashboard({
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   // Navigation tabs for Specialist view
-  const [activeTab, setActiveTab] = useState<'board' | 'unlocked' | 'profile' | 'services' | 'support' | 'notifications' | 'academy'>('board');
+  const [activeTab, setActiveTab] = useState<'board' | 'unlocked' | 'profile' | 'services' | 'support' | 'notifications' | 'academy' | 'calculators'>('board');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [typedMessage, setTypedMessage] = useState('');
   const [specialistChatChannel, setSpecialistChatChannel] = useState<'operator_specialist' | 'customer_specialist'>('operator_specialist');
@@ -161,6 +594,7 @@ export default function SpecialistDashboard({
   const [newSpecCity, setNewSpecCity] = useState('Portimão');
   // Error/Success state alerts
   const [alertMsg, setAlertMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [isTogglingGroupLead, setIsTogglingGroupLead] = useState(false);
   const handleProfileFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'passport' | 'id_card' | 'drivers_license') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -474,6 +908,30 @@ export default function SpecialistDashboard({
     };
   const isVerifiedSpecialist = currentUser?.specialistStatus === 'approved' || activeSpecialist?.status === 'approved';
 
+  const isGroupLeadActive = Boolean(activeSpecialist?.isGroupLead || currentUser?.isGroupLead);
+
+  const handleToggleGroupLead = async () => {
+    const specId = activeSpecialist?.id || currentUser?.id;
+    if (!specId) return;
+    const nextVal = !isGroupLeadActive;
+    setIsTogglingGroupLead(true);
+    try {
+      await store.toggleSpecialistGroupLead(specId, nextVal);
+      setAlertMsg({
+        type: 'success',
+        text: nextVal 
+          ? 'Group Lead status enabled! You can now accept team-based jobs.'
+          : 'Group Lead status disabled. You are operating as an individual specialist.'
+      });
+    } catch (err) {
+      console.error('Error toggling Group Lead status:', err);
+      setAlertMsg({ type: 'error', text: 'Failed to update Group Lead status.' });
+    } finally {
+      setIsTogglingGroupLead(false);
+      setTimeout(() => setAlertMsg(null), 5000);
+    }
+  };
+
   const handleCreateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSpecName || !newSpecLocalPhone) return;
@@ -594,6 +1052,44 @@ export default function SpecialistDashboard({
         <h1 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
           {t('spec.inline_SpecialistDashb_2', 'Specialist Dashboard')}
         </h1>
+      </div>
+
+      {/* Group Lead Status Indicator Banner */}
+      <div className="mb-6 p-4 bg-slate-900/80 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md" id="group-lead-status-banner">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+            <Users className="w-4 h-4" />
+          </div>
+          <div className="text-left">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white font-display">Group Lead Authorization:</span>
+              {isGroupLeadActive ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Active
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                  Inactive
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {isGroupLeadActive 
+                ? 'Authorized to accept jobs requiring a team and additional workers.' 
+                : 'Operating as individual specialist. Enable Group Lead in My Profile to take team jobs.'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0"
+        >
+          {isGroupLeadActive ? 'Manage Group Lead' : 'Enable Group Lead'}
+        </button>
       </div>
       {/* Alert Banner */}
       {alertMsg && (
@@ -767,6 +1263,18 @@ export default function SpecialistDashboard({
             </span>
           )}
         </button>
+        <button
+          id="spec-tab-calculators"
+          onClick={() => setActiveTab('calculators')}
+          className={`px-5 py-3 font-display font-bold text-sm border-b-2 transition-all -mb-px cursor-pointer flex items-center gap-2 shrink-0 ${
+            activeTab === 'calculators'
+              ? 'border-cyan-400 text-cyan-400 font-black'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          <Calculator className="w-4 h-4" />
+          <span>Calculators</span>
+        </button>
       </div>
       {/* --- BOARD TAB: ACTIVE LEAD BROADCASTS --- */}
       {activeTab === 'board' && (
@@ -913,9 +1421,16 @@ export default function SpecialistDashboard({
                       <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider font-bold">
                         REF: #{job.id.slice(0, 6).toUpperCase()}
                       </span>
-                      <span className="text-[10px] font-mono text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                        ● {t('spec.inline_ActiveLead_22', 'Active Lead')}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {job.isGroupJob && (
+                          <span className="text-[9px] font-mono text-cyan-300 font-bold bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                            👥 Team ({job.teamSize || 2})
+                          </span>
+                        )}
+                        <span className="text-[10px] font-mono text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          ● {t('spec.inline_ActiveLead_22', 'Active Lead')}
+                        </span>
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -1026,7 +1541,20 @@ export default function SpecialistDashboard({
                             </div>
                           </div>
                         )}
-                          <div className="p-4 bg-slate-950/40 rounded-xl border border-blue-950 mt-2">
+
+                        {/* Group Job / Team Configuration Section (Phase 2) */}
+                        <GroupJobTeamConfig
+                          job={job}
+                          activeSpecialist={activeSpecialist}
+                          currentUser={currentUser}
+                          onSaveConfig={(jobId, isGroupJob, teamMembers, groupHours) => {
+                            store.updateJobGroupConfig(jobId, isGroupJob, teamMembers, groupHours);
+                          }}
+                          lang={lang}
+                          t={t}
+                        />
+
+                        <div className="p-4 bg-slate-950/40 rounded-xl border border-blue-950 mt-2">
                           <span className="text-[9px] font-mono text-cyan-400 block uppercase font-bold mb-3 tracking-wider flex items-center gap-1.5">
                             <Clock className="w-3 h-3 text-cyan-400 animate-pulse" /> {t('spec.inline_ChronologicalCo_32', 'Chronological Coordination Timeline')}
                           </span>
@@ -1665,6 +2193,64 @@ export default function SpecialistDashboard({
               {t('spec.inline_Specifyyourcont_79', 'Specify your contact details, specialties, working region, skill level, and upload documents.')}
             </p>
           </div>
+
+          {/* 👥 GROUP LEAD SECTION */}
+          <div className="mb-8 p-6 bg-slate-950/80 rounded-2xl border border-cyan-500/30 shadow-xl space-y-4" id="group-lead-profile-card">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0 shadow-inner">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h4 className="text-base font-bold text-white font-display">Group Lead</h4>
+                    {isGroupLeadActive ? (
+                      <span className="px-3 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Status: Active
+                      </span>
+                    ) : (
+                      <span className="px-3 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                        Status: Inactive
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Accept team jobs and manage execution with additional workers.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                <span className="text-xs font-bold text-slate-200">
+                  {isGroupLeadActive ? 'Group Lead Enabled' : 'Enable Group Lead'}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isGroupLeadActive}
+                  onClick={handleToggleGroupLead}
+                  disabled={isTogglingGroupLead}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
+                    isGroupLeadActive ? 'bg-cyan-500' : 'bg-slate-800'
+                  }`}
+                  id="toggle-group-lead-switch"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      isGroupLeadActive ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 bg-blue-950/40 border border-blue-900/40 rounded-xl text-xs text-slate-300 leading-relaxed font-sans">
+              As a Group Lead, you can accept jobs that require a team. You remain the responsible registered Specialist and may bring additional workers to complete the job.
+            </div>
+          </div>
           <form onSubmit={handleSaveProfile} className="space-y-6" id="my-profile-form">
             
             {/* Photo Section */}
@@ -2244,6 +2830,12 @@ export default function SpecialistDashboard({
             </div>
           </div>
         )
+      )}
+      {/* --- CALCULATORS TAB --- */}
+      {activeTab === 'calculators' && (
+        <div className="mt-4 animate-in fade-in duration-300">
+          <CalculatorsPage />
+        </div>
       )}
       {/* --- STRIPE CHECKOUT SIMULATION MODAL --- */}
       {checkoutJobId && (() => {

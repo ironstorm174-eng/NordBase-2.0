@@ -54,6 +54,17 @@ export type JobStatus =
   | 'completed'           // Work completed
   | 'cancelled';          // Closed/invalid
 
+export type QualificationLevel = 'amateur' | 'professional' | 'expert';
+
+export interface TeamMember {
+  id: string;
+  role: 'lead' | 'worker';
+  qualificationLevel: QualificationLevel;
+  hourlyRate: number;
+  hours: number;
+  name?: string;
+}
+
 export interface Job {
   id: string;
   category: ServiceCategory;
@@ -103,6 +114,17 @@ export interface Job {
   positiveTags?: string[];
   customerComment?: string;
   feedbackSubmittedAt?: string;
+
+  // Group Job / Team Configuration fields (Phase 2 & Phase 3)
+  executionType?: 'individual' | 'group';
+  isGroupJob?: boolean;
+  groupLeadId?: string | null;
+  groupSize?: number | null;
+  groupMemberCount?: number | null;
+  leadSpecialistId?: string;
+  teamSize?: number;
+  teamMembers?: TeamMember[];
+  groupHours?: number;
 }
 
 export interface CustomerCompletionData {
@@ -162,6 +184,7 @@ export interface Specialist {
   verificationDocuments?: { type: 'passport' | 'id_card' | 'drivers_license'; name: string; url: string }[];
 
   // Marketplace & Subscription fields
+  isGroupLead?: boolean;
 }
 
 
@@ -260,6 +283,7 @@ export interface AuthUser {
   marketplaceServices?: SpecialistService[];
   aboutMe?: string;
   marketplaceAvailability?: SpecialistAvailabilitySlot[];
+  isGroupLead?: boolean;
 }
 
 export interface JobTimelineEvent {

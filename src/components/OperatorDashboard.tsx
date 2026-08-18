@@ -15,6 +15,7 @@ import Academy from './Academy';
 import HubChat from './HubChat';
 import CreateOrderModal from './CreateOrderModal';
 import NordBasePricingCalculator from './NordBasePricingCalculator';
+import CalculatorsPage from './calculators/CalculatorsPage';
 import {
   Headphones,
   MessageSquare,
@@ -315,7 +316,7 @@ export default function OperatorDashboard({
     );
   }
   return (
-    <div className="w-full h-full p-1 sm:p-2 md:p-4" id="operator-dashboard">
+    <div className="w-full h-full p-4 sm:p-6 md:p-8 bg-[#181a20]/90 border border-slate-800/80 rounded-3xl shadow-2xl backdrop-blur-sm" id="operator-dashboard">
       
       {/* 🏛️ TERRITORIAL HUB CONTEXT BANNER */}
       <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-cyan-950 border border-cyan-500/30 rounded-2xl p-4 sm:p-5 mb-5 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -1212,7 +1213,7 @@ export default function OperatorDashboard({
       {/* --- CALCULATOR TAB --- */}
       {activePortalTab === 'calculator' && (
         <div className="border border-slate-800 rounded-3xl bg-[#161922] p-4 sm:p-6 overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-          <NordBasePricingCalculator />
+          <CalculatorsPage />
         </div>
       )}
       {/* 📸 AVATAR PHOTO UPLOAD MODAL */}

@@ -1981,7 +1981,14 @@ const getRegionMetadata = (regionId: string, name: string) => {
               <span className="text-[10px] font-mono text-slate-500 block uppercase tracking-widest">
                 ASSIGNED SPECIALIST
               </span>
-              <div className="text-base font-medium text-white">{currentJob.unlockedBySpecialistName}</div>
+              <div className="text-base font-medium text-white flex flex-wrap items-center justify-between gap-2">
+                <span>{currentJob.unlockedBySpecialistName}</span>
+                {currentJob.isGroupJob && (
+                  <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-mono rounded-full font-bold">
+                    👥 Team Job ({currentJob.teamSize || 2} specialists)
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-slate-300 text-xs bg-[#0A0A0A] p-3 rounded-xl border border-white/5">
                 <Phone className="w-4 h-4 text-slate-400" />
                 <span className="font-mono">{currentJob.unlockedBySpecialistPhone}</span>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { ServiceCategory } from "../types";
 import { CATEGORY_SPECIALTIES } from "../data";
+import { calculateLeadPrice, SpecialistLevelKey } from "../utils/pricing";
 
 export type SpecialistLevel = "L1" | "L2" | "L3";
 
@@ -107,7 +108,7 @@ export interface PricingCalculationResult {
   totalOrderCost: number; // laborCost
   leadFee: number;
   leadFeePercentage: number;
-  leadTier: "tier1" | "tier2" | "tier3";
+  leadTierText: string;
   specialistNetPayout: number; // laborCost - leadFee
   effectiveSpecialistRate: number;
 }
@@ -116,10 +117,7 @@ export interface PricingCalculationResult {
  * Pure calculation logic adhering to NordBase business rules:
  * - Minimum 2 hours
  * - Minimum labor cost: €50
- * - Progressive lead fee formula:
- *   - €50–€100: 20%
- *   - €100–€200: €20 + 10% of amount > €100
- *   - €200+: €30 + 7.5% of amount > €200
+ * - Progressive lead fee formula from pricing utils
  */
 export function calculateNordBasePricing(
   hours: number,
@@ -138,23 +136,10 @@ export function calculateNordBasePricing(
 
   const totalOrderCost = laborCost;
 
-  // Progressive lead fee based on totalOrderCost
-  let leadFee = 0;
-  let leadTier: "tier1" | "tier2" | "tier3" = "tier1";
+  // Use the new centralized pricing utility
+  const leadPricing = calculateLeadPrice(totalOrderCost);
+  const leadFee = leadPricing.leadFee;
 
-  if (totalOrderCost <= 100) {
-    leadTier = "tier1";
-    leadFee = totalOrderCost * 0.20;
-  } else if (totalOrderCost <= 200) {
-    leadTier = "tier2";
-    leadFee = 20 + (totalOrderCost - 100) * 0.10;
-  } else {
-    leadTier = "tier3";
-    leadFee = 30 + (totalOrderCost - 200) * 0.075;
-  }
-
-  // Round to 2 decimals
-  leadFee = Math.round(leadFee * 100) / 100;
   const leadFeePercentage = Math.round((leadFee / totalOrderCost) * 1000) / 10;
   const specialistNetPayout = Math.max(0, Math.round((laborCost - leadFee) * 100) / 100);
   const effectiveSpecialistRate = Math.round((specialistNetPayout / safeHours) * 100) / 100;
@@ -173,7 +158,7 @@ export function calculateNordBasePricing(
     totalOrderCost,
     leadFee,
     leadFeePercentage,
-    leadTier,
+    leadTierText: leadPricing.formulaText,
     specialistNetPayout,
     effectiveSpecialistRate,
   };
@@ -532,9 +517,7 @@ export default function NordBasePricingCalculator({
                 <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
                   <span>Шкала тарифа:</span>
                   <span className="font-mono text-slate-300 font-medium">
-                    {result.leadTier === "tier1" && "€50–100 → 20%"}
-                    {result.leadTier === "tier2" && "€100–200 → €20 + 10% (>€100)"}
-                    {result.leadTier === "tier3" && "€200+ → €30 + 7.5% (>€200)"}
+                    {result.leadTierText}
                   </span>
                 </div>
               </div>

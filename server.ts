@@ -368,6 +368,47 @@ export async function findUserById(userId: string) {
   return null;
 }
 
+export async function findSpecialistById(specialistId: string) {
+  if (pool) {
+    let client: any = null;
+    try {
+      client = await pool.connect();
+      const res = await client.query('SELECT * FROM specialists WHERE id = $1', [specialistId]);
+      if (res.rows.length > 0) {
+        const s = res.rows[0];
+        return {
+          id: s.id,
+          name: s.name,
+          phone: s.phone,
+          category: s.category,
+          city: s.city,
+          balance: parseFloat(s.balance || '0'),
+          isGroupLead: Boolean(s.is_group_lead),
+          photoUrl: s.photo_url
+        };
+      }
+    } catch (err) {
+      console.error('Error finding specialist by id in Postgres:', err);
+    } finally {
+      if (client) {
+        try { client.release(); } catch (e) {
+          // ignore release error
+        }
+      }
+    }
+  }
+
+  const mem = inMemorySpecialists.find(s => s.id === specialistId);
+  if (mem) {
+    return {
+      ...mem,
+      isGroupLead: Boolean(mem.isGroupLead)
+    };
+  }
+
+  return null;
+}
+
 export async function findJobById(jobId: string) {
   if (pool) {
     let client: any = null;
@@ -416,7 +457,18 @@ export async function findJobById(jobId: string) {
           customerPriceAccepted: j.customer_price_accepted !== null && j.customer_price_accepted !== undefined ? j.customer_price_accepted : true,
           finalPrice: j.final_price ? parseFloat(j.final_price) : undefined,
           calloutFeePending: j.callout_fee_pending || false,
-          calloutFeeAmount: j.callout_fee_amount ? parseFloat(j.callout_fee_amount) : 0
+          calloutFeeAmount: j.callout_fee_amount ? parseFloat(j.callout_fee_amount) : 0,
+          executionType: j.execution_type || (j.is_group_job ? 'group' : 'individual'),
+          isGroupJob: j.is_group_job || false,
+          groupLeadId: j.group_lead_id || j.lead_specialist_id || j.unlocked_by_specialist_id || null,
+          groupSize: j.group_size ? parseInt(j.group_size) : (j.team_size ? parseInt(j.team_size) : (j.is_group_job ? 2 : null)),
+          groupMemberCount: j.group_member_count !== null && j.group_member_count !== undefined 
+            ? parseInt(j.group_member_count) 
+            : (j.group_size ? parseInt(j.group_size) - 1 : (j.team_size ? parseInt(j.team_size) - 1 : (j.is_group_job ? 1 : null))),
+          leadSpecialistId: j.group_lead_id || j.lead_specialist_id || undefined,
+          teamSize: j.group_size ? parseInt(j.group_size) : (j.team_size ? parseInt(j.team_size) : 1),
+          teamMembers: typeof j.team_members === 'string' ? JSON.parse(j.team_members) : j.team_members || [],
+          groupHours: j.group_hours ? parseFloat(j.group_hours) : undefined
         };
       }
     } catch (err) {
@@ -548,7 +600,18 @@ async function initDb() {
       `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS trade_skill_level VARCHAR(255);`,
       `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS skills_description TEXT;`,
       `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS specialties_with_levels JSONB DEFAULT '[]'::jsonb;`,
+      `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS is_group_lead BOOLEAN DEFAULT false;`,
+      `ALTER TABLE specialists ADD COLUMN IF NOT EXISTS is_group_lead BOOLEAN DEFAULT false;`,
       `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hub_id VARCHAR(255);`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS execution_type VARCHAR(50) DEFAULT 'individual';`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS is_group_job BOOLEAN DEFAULT false;`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS lead_specialist_id VARCHAR(255);`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS group_lead_id VARCHAR(255);`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS group_size INT;`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS group_member_count INT;`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS team_size INT DEFAULT 1;`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS team_members JSONB DEFAULT '[]'::jsonb;`,
+      `ALTER TABLE jobs ADD COLUMN IF NOT EXISTS group_hours NUMERIC;`,
       
       `ALTER TABLE app_users DROP CONSTRAINT IF EXISTS app_users_email_key;`,
       `ALTER TABLE app_users DROP CONSTRAINT IF EXISTS app_users_phone_key;`,
@@ -1106,6 +1169,12 @@ const handleDataSync = async (req: express.Request, res: express.Response) => {
         rating: r.rating ? parseFloat(r.rating) : undefined,
         positiveTags: r.positive_tags || [],
         customerComment: r.customer_comment || undefined,
+        executionType: r.execution_type || 'individual',
+        isGroupJob: r.is_group_job || false,
+        leadSpecialistId: r.lead_specialist_id || undefined,
+        teamSize: r.team_size ? parseInt(r.team_size) : 1,
+        teamMembers: typeof r.team_members === 'string' ? JSON.parse(r.team_members) : r.team_members || [],
+        groupHours: r.group_hours ? parseFloat(r.group_hours) : undefined,
       }));
 
       rawPartnerApplications = partnerAppsRes.rows.map(r => ({
@@ -2321,6 +2390,124 @@ app.post('/api/user/update-photo', verifyAuthToken, async (req, res) => {
   res.json({ success: true });
 });
 
+// Endpoint: Toggle Group Lead Status for Specialist
+app.post('/api/specialists/:id/group-lead', verifyAuthToken, async (req, res) => {
+  try {
+    const caller = (req as AuthenticatedRequest).authenticatedUser!;
+    const { id } = req.params;
+    const { isGroupLead } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Specialist ID is required' });
+    }
+
+    if (caller.role === 'specialist' && caller.id !== id) {
+      return res.status(403).json({ error: 'Forbidden: Cannot update group lead status for another specialist.' });
+    }
+
+    const targetVal = Boolean(isGroupLead);
+
+    // Update in-memory cache
+    const memUser = inMemoryUsers.find(u => u.id === id);
+    if (memUser) memUser.isGroupLead = targetVal;
+
+    const memSpec = inMemorySpecialists.find(s => s.id === id);
+    if (memSpec) memSpec.isGroupLead = targetVal;
+
+    // Update Neon DB if pool exists
+    if (pool) {
+      const client = await pool.connect();
+      try {
+        await client.query(`UPDATE app_users SET is_group_lead = $1 WHERE id = $2`, [targetVal, id]);
+        await client.query(`UPDATE specialists SET is_group_lead = $1 WHERE id = $2`, [targetVal, id]);
+      } catch (err) {
+        console.error('Error updating group lead status in DB:', err);
+      } finally {
+        client.release();
+      }
+    }
+
+    res.json({ success: true, isGroupLead: targetVal });
+  } catch (err: any) {
+    console.error('Error updating group lead status:', err);
+    res.status(500).json({ error: 'Failed to update group lead status' });
+  }
+});
+
+// Update Job Group Configuration (Phase 2)
+app.post('/api/jobs/:id/group-config', verifyAuthToken, async (req, res) => {
+  try {
+    const caller = (req as AuthenticatedRequest).authenticatedUser!;
+    const { id } = req.params;
+    const { isGroupJob, teamMembers, groupHours } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+
+    // Verify caller is a Specialist with isGroupLead active or admin/operator
+    const user = await findUserById(caller.id);
+    const specialist = await findSpecialistById(caller.id);
+    const isGroupLead = Boolean(specialist?.isGroupLead || user?.isGroupLead);
+
+    if (isGroupJob && !isGroupLead && caller.role === 'specialist') {
+      return res.status(403).json({ error: 'Forbidden: Active Group Lead status is required to configure a Group Job.' });
+    }
+
+    const executionType = isGroupJob ? 'group' : 'individual';
+    const teamSize = isGroupJob && Array.isArray(teamMembers) ? teamMembers.length : 1;
+
+    // Update in-memory job cache
+    const memJob = inMemoryJobs.find(j => j.id === id);
+    if (memJob) {
+      memJob.executionType = executionType;
+      memJob.isGroupJob = Boolean(isGroupJob);
+      memJob.leadSpecialistId = isGroupJob ? caller.id : undefined;
+      memJob.teamSize = teamSize;
+      memJob.teamMembers = isGroupJob ? teamMembers : [];
+      if (groupHours !== undefined) memJob.groupHours = groupHours;
+    }
+
+    // Update Neon DB if pool exists
+    if (pool) {
+      const client = await pool.connect();
+      try {
+        await client.query(
+          `UPDATE jobs 
+           SET execution_type = $1, is_group_job = $2, lead_specialist_id = $3, team_size = $4, team_members = $5, group_hours = $6
+           WHERE id = $7`,
+          [
+            executionType,
+            Boolean(isGroupJob),
+            isGroupJob ? caller.id : null,
+            teamSize,
+            JSON.stringify(isGroupJob ? teamMembers : []),
+            groupHours || null,
+            id
+          ]
+        );
+      } catch (err) {
+        console.error('Error updating job group config in DB:', err);
+      } finally {
+        client.release();
+      }
+    }
+
+    res.json({
+      success: true,
+      jobId: id,
+      executionType,
+      isGroupJob: Boolean(isGroupJob),
+      teamSize,
+      teamMembers: isGroupJob ? teamMembers : [],
+      groupHours
+    });
+  } catch (err: any) {
+    console.error('Error updating job group configuration:', err);
+    res.status(500).json({ error: 'Failed to update job group configuration' });
+  }
+});
+
 // 5. Create Job
 app.post('/api/jobs', verifyAuthToken, async (req, res) => {
   const caller = (req as AuthenticatedRequest).authenticatedUser!;
@@ -2339,7 +2526,30 @@ app.post('/api/jobs', verifyAuthToken, async (req, res) => {
     }
   }
 
-  const { category, city, specificLocation, description, customerName, customerPhone, attachments, operatorId, hubId } = req.body;
+  const { category, city, specificLocation, description, customerName, customerPhone, attachments, operatorId, hubId, executionType, isGroupJob, groupLeadId, groupSize } = req.body;
+
+  const isGroup = Boolean(isGroupJob || executionType === 'group');
+  let finalGroupLeadId: string | null = null;
+  let finalGroupSize: number | null = null;
+  let finalGroupMemberCount: number | null = null;
+  let finalExecutionType: 'individual' | 'group' = 'individual';
+
+  if (isGroup) {
+    finalExecutionType = 'group';
+    const parsedSize = groupSize ? parseInt(groupSize) : 2;
+    finalGroupSize = parsedSize >= 2 ? parsedSize : 2;
+    finalGroupMemberCount = finalGroupSize - 1;
+
+    if (groupLeadId) {
+      const candidateSpec = await findSpecialistById(groupLeadId);
+      const candidateUser = await findUserById(groupLeadId);
+      const isLeadValid = Boolean(candidateSpec?.isGroupLead || candidateUser?.isGroupLead);
+      if (!isLeadValid) {
+        return res.status(400).json({ error: 'Assigned specialist must have active Group Lead status.' });
+      }
+      finalGroupLeadId = groupLeadId;
+    }
+  }
 
   let finalCustomerName = customerName;
   let finalCustomerPhone = customerPhone;
@@ -2433,15 +2643,27 @@ app.post('/api/jobs', verifyAuthToken, async (req, res) => {
     hubId: hubId || null,
     coordinatorNotes: '',
     attachments: attachments || [],
-    messages: []
+    messages: [],
+    executionType: finalExecutionType,
+    isGroupJob: isGroup,
+    groupLeadId: finalGroupLeadId,
+    groupSize: finalGroupSize,
+    groupMemberCount: finalGroupMemberCount,
+    leadSpecialistId: finalGroupLeadId || undefined,
+    teamSize: finalGroupSize || 1,
   };
 
   if (pool) {
     try {
       const client = await pool.connect();
       await client.query(
-        `INSERT INTO jobs (id, category, city, specific_location, description, estimated_hours, estimated_value, lead_price, status, created_at, customer_name, customer_phone, unlocked_by_specialist_id, coordinator_id, coordinator_notes, hub_id, attachments, messages, customer_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+        `INSERT INTO jobs (
+          id, category, city, specific_location, description, estimated_hours, estimated_value, lead_price, 
+          status, created_at, customer_name, customer_phone, unlocked_by_specialist_id, coordinator_id, 
+          coordinator_notes, hub_id, attachments, messages, customer_id, execution_type, is_group_job, 
+          group_lead_id, group_size, group_member_count, lead_specialist_id, team_size
+        ) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`,
         [
           newJob.id,
           newJob.category,
@@ -2461,7 +2683,14 @@ app.post('/api/jobs', verifyAuthToken, async (req, res) => {
           newJob.hubId || null,
           newJob.attachments,
           JSON.stringify(newJob.messages),
-          newJob.customerId
+          newJob.customerId,
+          newJob.executionType,
+          newJob.isGroupJob,
+          newJob.groupLeadId,
+          newJob.groupSize,
+          newJob.groupMemberCount,
+          newJob.groupLeadId,
+          newJob.teamSize
         ]
       );
       client.release();
@@ -2611,6 +2840,20 @@ async function performAtomicLeadUnlock(
       return res.status(403).json({ error: 'Specialist account is blocked', code: 'ACCOUNT_BLOCKED' });
     }
 
+    // Step C2: Group Lead Eligibility Check for Group Jobs
+    const isGroupJob = Boolean(job.is_group_job);
+    if (isGroupJob) {
+      const isGroupLead = Boolean(specialist.is_group_lead);
+      if (!isGroupLead) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(403).json({
+          error: 'Only certified Group Leads (isGroupLead=true) can accept or lead Group Jobs.',
+          code: 'GROUP_LEAD_REQUIRED'
+        });
+      }
+    }
+
     // Step D: Server-Side Lead Price & Balance Validation
     // Authoritative lead price MUST come directly from database record!
     const leadPrice = parseFloat(job.lead_price || '0');
@@ -2639,7 +2882,10 @@ async function performAtomicLeadUnlock(
     // Step F: Assign Lead & Update Status
     await client.query(
       `UPDATE jobs 
-       SET status = 'active', unlocked_by_specialist_id = $1 
+       SET status = 'active', 
+           unlocked_by_specialist_id = $1,
+           group_lead_id = CASE WHEN is_group_job THEN $1 ELSE group_lead_id END,
+           lead_specialist_id = CASE WHEN is_group_job THEN $1 ELSE lead_specialist_id END
        WHERE id = $2`,
       [targetSpecialistId, jobId]
     );
