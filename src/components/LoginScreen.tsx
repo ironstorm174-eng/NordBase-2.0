@@ -39,8 +39,6 @@ export default function LoginScreen({
   );
 
   const [activeRole, setActiveRole] = useState<UserRole>(expectedRole);
-  const [customEmail, setCustomEmail] = useState('');
-  const [customDashboardNumber, setCustomDashboardNumber] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -67,35 +65,6 @@ export default function LoginScreen({
     } catch (e) {
       console.error('Error decoding JWT', e);
       return null;
-    }
-  };
-
-  const handleManualEmailLogin = async (targetEmail?: string) => {
-    const emailToUse = (targetEmail || customEmail).trim();
-    if (!emailToUse) {
-      setErrorMsg('Please provide a valid email address.');
-      return;
-    }
-    setIsLoading(true);
-    setErrorMsg(null);
-    try {
-      const userName = emailToUse.split('@')[0];
-      const user = await onLoginSuccess(
-        emailToUse,
-        '',
-        userName,
-        activeRole,
-        undefined,
-        false,
-        customDashboardNumber.trim() || undefined
-      );
-      if (user.isNewUser) {
-        onOnboardUser(user.id, activeRole, user.name, user.phone || '');
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Authorization failed. Please verify credentials.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -344,27 +313,10 @@ export default function LoginScreen({
               </p>
             </div>
 
-            {/* Quick 1-Click Action for Super Admin */}
-            {activeRole === 'super_admin' && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center space-y-2">
-                <div className="text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5">
-                  <span>⚡ Master Fast Access</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleManualEmailLogin('ironstorm174@gmail.com')}
-                  disabled={isLoading}
-                  className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-display font-black text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
-                >
-                  <span>Sign In as Oleg (ironstorm174@gmail.com)</span>
-                </button>
-              </div>
-            )}
-
             {/* Google OAuth Section */}
             <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-4 text-center">
               <div className="text-xs text-slate-300 font-medium">
-                {activeRole === 'super_admin' ? 'Or authenticate via authorized Google Account' : 'Sign in or register using your official Google Account'}
+                {activeRole === 'super_admin' ? 'Authenticate via authorized Google Account' : 'Sign in or register using your official Google Account'}
               </div>
 
               {/* Rendered Google GSI Container */}
@@ -384,44 +336,6 @@ export default function LoginScreen({
                     <span>Continue with Google</span>
                   </button>
                 </div>
-              </div>
-
-              {/* Direct email authentication fallback */}
-              <div className="pt-2 border-t border-slate-800/80">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleManualEmailLogin();
-                  }}
-                  className="space-y-2 text-left"
-                >
-                  <div className="text-[10px] text-slate-400 font-medium">
-                    {activeRole === 'super_admin' ? 'Authorized Email Address:' : 'Direct Email Sign In:'}
-                  </div>
-                  <input
-                    type="email"
-                    value={customEmail}
-                    onChange={(e) => setCustomEmail(e.target.value)}
-                    placeholder={activeRole === 'super_admin' ? 'ironstorm174@gmail.com' : 'user@example.com'}
-                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                  />
-                  {['operator', 'regional_admin'].includes(activeRole) && (
-                    <input
-                      type="text"
-                      value={customDashboardNumber}
-                      onChange={(e) => setCustomDashboardNumber(e.target.value)}
-                      placeholder="Dashboard Number (e.g. 01, 02)"
-                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                    />
-                  )}
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-600 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {isLoading ? 'Authenticating...' : 'Sign In with Email'}
-                  </button>
-                </form>
               </div>
 
               {isLoading && (

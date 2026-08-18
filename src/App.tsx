@@ -212,7 +212,8 @@ export default function App() {
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
     return (
-      path.startsWith('/partner') ||
+      path === '/partner' ||
+      path.startsWith('/partner/') ||
       path === '/become-a-partner' ||
       hash === '#/partner' ||
       hash === '#partner' ||
@@ -224,16 +225,17 @@ export default function App() {
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
     return (
-      path.startsWith('/how-it-works') ||
       path === '/how-it-works' ||
+      path.startsWith('/how-it-works/') ||
       hash === '#/how-it-works' ||
       hash === '#how-it-works' ||
-      search.includes('page=how-it-works') ||
-      search.includes('how-it-works')
+      search.includes('page=how-it-works')
     );
   });
   const [isKnowledgeBase, setIsKnowledgeBase] = useState(() => {
-    return window.location.pathname.toLowerCase().startsWith('/knowledge-base');
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return path.startsWith('/knowledge-base') || hash.startsWith('#/knowledge-base');
   });
   const [isPitchDeck, setIsPitchDeck] = useState(() => {
     const path = window.location.pathname.toLowerCase();
@@ -241,8 +243,7 @@ export default function App() {
     const search = window.location.search.toLowerCase();
     return (
       path.startsWith('/pitch/') ||
-      hash.includes('/pitch/') ||
-      hash.includes('pitch') ||
+      hash.startsWith('#/pitch/') ||
       search.includes('pitch=')
     );
   });
@@ -265,28 +266,29 @@ export default function App() {
     const hash = location.hash.toLowerCase();
     const search = location.search.toLowerCase();
     const isHowItWorksRoute =
-      path.startsWith('/how-it-works') ||
       path === '/how-it-works' ||
+      path.startsWith('/how-it-works/') ||
       hash === '#/how-it-works' ||
       hash === '#how-it-works' ||
-      search.includes('how-it-works');
+      search.includes('page=how-it-works');
     const isPartnerRoute =
-      path.startsWith('/partner') ||
+      path === '/partner' ||
+      path.startsWith('/partner/') ||
       path === '/become-a-partner' ||
       hash === '#/partner' ||
       hash === '#partner' ||
       search.includes('page=partner');
-    const isKbRoute = path.startsWith('/knowledge-base');
+    const isKbRoute = path.startsWith('/knowledge-base') || hash.startsWith('#/knowledge-base');
     const isPitchDeckRoute =
       path.startsWith('/pitch/') ||
-      hash.includes('/pitch/') ||
-      hash.includes('pitch') ||
+      hash.startsWith('#/pitch/') ||
       search.includes('pitch=');
     if (isHowItWorksRoute) {
       if (!isHowItWorks) setIsHowItWorks(true);
       if (isPartnerPage) setIsPartnerPage(false);
       if (isKnowledgeBase) setIsKnowledgeBase(false);
       if (isPitchDeck) setIsPitchDeck(false);
+      if (geoRoute) setGeoRoute(null);
       return;
     }
     if (isPitchDeckRoute) {
@@ -294,6 +296,7 @@ export default function App() {
       if (isHowItWorks) setIsHowItWorks(false);
       if (isPartnerPage) setIsPartnerPage(false);
       if (isKnowledgeBase) setIsKnowledgeBase(false);
+      if (geoRoute) setGeoRoute(null);
       const combined = `${path} ${hash} ${search}`;
       if (combined.includes('tp')) {
         if (pitchDeckLevel !== 'tp') setPitchDeckLevel('tp');
@@ -309,6 +312,7 @@ export default function App() {
       if (isHowItWorks) setIsHowItWorks(false);
       if (isKnowledgeBase) setIsKnowledgeBase(false);
       if (isPitchDeck) setIsPitchDeck(false);
+      if (geoRoute) setGeoRoute(null);
       return;
     }
     if (isKbRoute) {
@@ -316,6 +320,7 @@ export default function App() {
       if (isHowItWorks) setIsHowItWorks(false);
       if (isPartnerPage) setIsPartnerPage(false);
       if (isPitchDeck) setIsPitchDeck(false);
+      if (geoRoute) setGeoRoute(null);
       const parts = location.pathname.split('/knowledge-base');
       const rawSlug = parts[1] ? parts[1].replace(/^\//, '') : null;
       const slug = rawSlug || null;
@@ -353,29 +358,11 @@ export default function App() {
     if (isKnowledgeBase) setIsKnowledgeBase(false);
     if (isPitchDeck) setIsPitchDeck(false);
     const isOperatorRoute =
-      path.startsWith('/tp') ||
-      path === '/tpartner' ||
-      path.startsWith('/tpartner') ||
-      path.startsWith('/tppartner') ||
-      path.startsWith('/operator') ||
-      path.startsWith('/ops') ||
-      path === '/localoperator' ||
-      hash === '#/localoperator' ||
-      hash === '#localoperator' ||
-      hash === '#/tpartner' ||
-      hash === '#tpartner' ||
-      search.includes('role=operator') ||
-      search.includes('page=operator');
+      path === '/tp-portal' ||
+      path.startsWith('/tp-portal');
     const isAdminRoute =
-      path.startsWith('/rp') ||
-      path.startsWith('/regional') ||
-      path.startsWith('/rd') ||
-      path.startsWith('/admin') ||
-      path === '/localadmin' ||
-      hash === '#/localadmin' ||
-      hash === '#localadmin' ||
-      search.includes('role=regional_admin') ||
-      search.includes('role=admin');
+      path === '/rp-portal' ||
+      path.startsWith('/rp-portal');
     const isSuperAdminRoute =
       path === '/superadmin/oleg' ||
       path.startsWith('/superadmin/oleg');
@@ -476,7 +463,10 @@ export default function App() {
       if (state.currentRole !== 'customer') handleRoleChange('customer');
       if (customerView !== 'menu') setCustomerView('menu');
       if (cat && state.selectedCategory !== cat) handleSelectCategory(cat);
-    } else if (path === '/') {
+    } else if (path === '/' || path === '') {
+      if (state.currentRole === 'customer') {
+        if (customerView !== 'menu') setCustomerView('menu');
+      }
       if (currentUser && currentUser.role && state.currentRole !== currentUser.role) {
         handleRoleChange(currentUser.role);
       }
@@ -485,57 +475,6 @@ export default function App() {
       setShowLoginModal(true);
     }
   }, [location.pathname, location.hash, location.search]);
-  // Handle external routing properly without causing infinite loops
-  useEffect(() => {
-    const handleUrlRoute = () => {
-      const path = location.pathname.toLowerCase();
-      
-      // Update state based on URL, but don't force navigate away
-      if (path.startsWith('/how-it-works')) {
-        setIsHowItWorks(true);
-        setIsPartnerPage(false);
-        setIsKnowledgeBase(false);
-        setIsPitchDeck(false);
-      } else if (path.startsWith('/partner') || path === '/become-a-partner') {
-        setIsPartnerPage(true);
-        setIsHowItWorks(false);
-        setIsKnowledgeBase(false);
-        setIsPitchDeck(false);
-      } else if (path.startsWith('/knowledge-base')) {
-        setIsKnowledgeBase(true);
-        setIsPartnerPage(false);
-        setIsHowItWorks(false);
-        setIsPitchDeck(false);
-        
-        const parts = path.split('/');
-        if (parts.length > 2 && parts[2]) {
-          setKbArticleSlug(parts[2]);
-        } else {
-          setKbArticleSlug(null);
-        }
-      } else if (path.startsWith('/pitch/')) {
-        setIsPitchDeck(true);
-        setIsKnowledgeBase(false);
-        setIsPartnerPage(false);
-        setIsHowItWorks(false);
-        
-        if (path.includes('rp-secret')) setPitchDeckLevel('rp');
-        else if (path.includes('investor-secret')) setPitchDeckLevel('investor');
-        else setPitchDeckLevel('tp');
-      } else if (path === '/' || path === '') {
-        // Reset flags for home
-        setIsHowItWorks(false);
-        setIsPartnerPage(false);
-        setIsKnowledgeBase(false);
-        setIsPitchDeck(false);
-        if (state.currentRole === 'customer') {
-          setCustomerView('menu');
-        }
-      }
-    };
-    
-    handleUrlRoute();
-  }, [location.pathname, state.currentRole]);
   if (isPitchDeck) {
     return (
       <div id="pitch-deck-wrapper">
