@@ -27,7 +27,14 @@ export const TerritorialHubsManager: React.FC<TerritorialHubsManagerProps> = ({
   currentRegion,
   isSuperAdmin = false,
 }) => {
-  const storeState = store.getState();
+  const [storeState, setStoreState] = useState(store.getState());
+
+  useEffect(() => {
+    return store.subscribe((newState) => {
+      setStoreState(newState);
+    });
+  }, []);
+
   const hubs = storeState.hubs || [];
   const jobs = storeState.jobs || [];
   const specialists = storeState.specialists || [];
