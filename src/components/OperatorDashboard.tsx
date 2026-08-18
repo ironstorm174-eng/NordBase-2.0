@@ -14,6 +14,7 @@ import OperatorLeadsTerminal from './OperatorLeadsTerminal';
 import Academy from './Academy';
 import HubChat from './HubChat';
 import CreateOrderModal from './CreateOrderModal';
+import NordBasePricingCalculator from './NordBasePricingCalculator';
 import {
   Headphones,
   MessageSquare,
@@ -30,7 +31,7 @@ import {
   Search,
   Filter,
   Check,
-  Briefcase, Inbox, Send,
+  Briefcase, Inbox,
   ExternalLink,
   Lock,
   Unlock,
@@ -50,6 +51,7 @@ import {
   Trash2,
   Building2,
   Layers,
+  Calculator,
 } from 'lucide-react';
 interface OperatorDashboardProps {
   jobs: Job[];
@@ -125,7 +127,8 @@ export default function OperatorDashboard({
   const lang = i18n.language;
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   // Dashboard view selection (Lead Ops vs Workspace Noticeboard vs Support Desk)
-  const [activePortalTab, setActivePortalTab] = useState<'customers' | 'specialists' | 'regional_admin' | 'academy' | 'inbox' | 'hub_chat'>('customers');
+  const [activePortalTab, setActivePortalTab] = useState<'customers' | 'specialists' | 'regional_admin' | 'academy' | 'inbox' | 'hub_chat' | 'calculator'>('customers');
+  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState('');
   const [localChats, setLocalChats] = useState<Record<string, { sender: string; text: string; time: string }[]>>({});
@@ -346,7 +349,7 @@ export default function OperatorDashboard({
         </div>
       </div>
       {/* 👤 SEARCHABLE / GROUPED CUSTOM TERRITORY PARTNER TERMINAL STATUS */}
-      <div className="bg-[#050B1B] border border-blue-900/30 rounded-2xl p-5 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-xl text-left">
+      <div className="bg-[#161922] border border-slate-800 rounded-2xl p-5 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 shadow-xl text-left">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
           {/* Avatar Component */}
           <div className="relative group shrink-0" id="operator-avatar-wrapper">
@@ -369,7 +372,7 @@ export default function OperatorDashboard({
             {/* Camera Overlay button */}
             <button
               onClick={() => setShowPhotoModal(true)}
-              className="absolute -bottom-1 -right-1 p-1.5 bg-slate-900 border border-blue-900/40 rounded-full text-slate-400 hover:text-white transition-all cursor-pointer shadow-md hover:scale-110"
+              className="absolute -bottom-1 -right-1 p-1.5 bg-slate-900 border border-slate-750 rounded-full text-slate-400 hover:text-white transition-all cursor-pointer shadow-md hover:scale-110"
               title="Upload / Change Avatar"
               id="upload-avatar-trigger"
             >
@@ -387,7 +390,7 @@ export default function OperatorDashboard({
               {currentUser.name}
             </h2>
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400 font-medium">
-              <span className="px-3 py-1 bg-blue-950 text-slate-300 rounded border border-cyan-500/10">Dashboard operating region: {currentUser.city && currentUser.city !== 'Portugal' && currentUser.city !== 'Algarve Hub' ? currentUser.city : 'Portimão'}</span>
+              <span className="px-3 py-1 bg-slate-950 text-slate-300 rounded border border-slate-800">Dashboard operating region: {currentUser.city && currentUser.city !== 'Portugal' && currentUser.city !== 'Algarve Hub' ? currentUser.city : 'Portimão'}</span>
               <a
                 href={getWhatsAppUrl(currentUser.whatsapp || currentUser.phone || '+351 912 888 777', "Hello Territory Partner!")}
                 target="_blank"
@@ -404,6 +407,14 @@ export default function OperatorDashboard({
         {/* Status toggler & Create Order Action */}
         <div className="flex flex-wrap items-center gap-3 relative">
           <button
+            onClick={() => setShowCalculatorModal(true)}
+            className="px-3.5 py-2.5 bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+            title="Калькулятор Заказа и Лида NordBase"
+          >
+            <Calculator className="w-4 h-4 text-cyan-400" />
+            <span>Калькулятор</span>
+          </button>
+          <button
             onClick={() => setShowCreateOrderModal(true)}
             id="create-lead-tp-btn-top"
             className="px-4 py-2.5 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500 hover:from-blue-500 hover:to-cyan-400 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition-all cursor-pointer border border-cyan-400/40 active:scale-95 animate-pulse"
@@ -412,7 +423,7 @@ export default function OperatorDashboard({
             <PlusCircle className="w-4 h-4 text-white" />
             <span>+ Create Lead</span>
           </button>
-          <div className="flex bg-slate-950 p-1.5 rounded-xl border border-blue-950 text-sm items-center gap-1">
+          <div className="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-sm items-center gap-1">
             <span className="text-xs text-slate-500 font-mono px-3 uppercase font-black"> {lang === 'pt' ? 'Status:' : 'Status:'} </span>
             {['online', 'busy', 'idle'].map((st) => (
               <button
@@ -471,7 +482,7 @@ export default function OperatorDashboard({
         </div>
       )}
       {/* Main Coordination Modules Selector */}
-      <div className="flex bg-[#0A1128]/80 border border-blue-900/20 p-1.5 rounded-2xl mb-6 gap-2">
+      <div className="flex bg-[#161922] border border-slate-800 p-1.5 rounded-2xl mb-6 gap-2">
         <button
           onClick={() => setActivePortalTab('customers')}
           className={`flex-1 py-3 text-xs font-display font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
@@ -544,6 +555,17 @@ export default function OperatorDashboard({
         >
           <GraduationCap className="w-4 h-4" />
           <span> {lang === 'pt' ? 'Academia' : 'Academy'} </span>
+        </button>
+        <button
+          onClick={() => setActivePortalTab('calculator')}
+          className={`flex-1 py-3 text-xs font-display font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activePortalTab === 'calculator'
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md'
+              : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+          }`}
+        >
+          <Calculator className="w-4 h-4" />
+          <span>Калькулятор</span>
         </button>
       </div>
       
@@ -1177,20 +1199,26 @@ export default function OperatorDashboard({
       )}
       {/* --- HUB CHAT TAB --- */}
       {activePortalTab === 'hub_chat' && (
-        <div className="border border-blue-900/30 rounded-3xl bg-[#050B1B] overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="border border-slate-800 rounded-3xl bg-[#161922] overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
           {currentUser && <HubChat currentUser={currentUser} />}
         </div>
       )}
       {/* --- ACADEMY TAB --- */}
       {activePortalTab === 'academy' && (
-        <div className="h-[800px] border border-blue-900/30 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="h-[800px] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
           <Academy userRole="operator" />
+        </div>
+      )}
+      {/* --- CALCULATOR TAB --- */}
+      {activePortalTab === 'calculator' && (
+        <div className="border border-slate-800 rounded-3xl bg-[#161922] p-4 sm:p-6 overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <NordBasePricingCalculator />
         </div>
       )}
       {/* 📸 AVATAR PHOTO UPLOAD MODAL */}
       {showPhotoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm" id="avatar-photo-modal">
-          <div className="bg-[#050B1B] border border-blue-900/40 rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-left">
+          <div className="bg-[#161922] border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-left">
             <h3 className="text-lg font-black text-white mb-2 flex items-center gap-2">
               <Camera className="w-5 h-5 text-cyan-400" />
               <span>Update Profile Photo</span>
@@ -1199,7 +1227,7 @@ export default function OperatorDashboard({
               Upload a custom profile image to display in your active Territory Partner terminal, live customer chat logs, and team directories.
             </p>
             {/* Current Avatar preview & preset options */}
-            <div className="flex items-center gap-4 mb-6 bg-slate-950/50 p-3 rounded-xl border border-blue-950">
+            <div className="flex items-center gap-4 mb-6 bg-slate-950/50 p-3 rounded-xl border border-slate-800">
               <div className="shrink-0">
                 {currentUser.photoUrl ? (
                   <img
@@ -1320,6 +1348,13 @@ export default function OperatorDashboard({
           setTimeout(() => setLocalAlert(null), 4000);
         }}
       />
+      {/* 🧮 NORDBASE PRICING CALCULATOR MODAL */}
+      {showCalculatorModal && (
+        <NordBasePricingCalculator
+          isModal={true}
+          onClose={() => setShowCalculatorModal(false)}
+        />
+      )}
     </div>
   );
 }

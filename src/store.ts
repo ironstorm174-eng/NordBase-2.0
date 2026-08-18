@@ -15,13 +15,13 @@ export const INITIAL_USERS: AuthUser[] = [
     id: 'user-super-01',
     email: 'ironstorm174@gmail.com',
     phone: '+351 901 000 000',
-    name: 'Oleg (Territorial Partner)',
+    name: 'Oleg Sugrobov',
     role: 'super_admin',
     specialistStatus: 'not_requested',
     dashboardNumber: '01',
     photoUrl: '/portimao_tp.jpg',
     city: 'Portimão',
-    region: 'Algarve'
+    region: 'Portugal (HQ)'
   },
   {
     id: 'user-rp-dana',
@@ -662,12 +662,12 @@ class AppStore {
           id: 'user-super-01',
           email: normalizedEmail,
           phone: normalizedPhone || '+351 901 000 000',
-          name: name || 'Oleg (Territorial Partner)',
+          name: name || 'Oleg Sugrobov',
           role: 'super_admin',
           dashboardNumber: '01',
           photoUrl: photoUrl || '/portimao_tp.jpg',
           city: 'Portimão',
-          region: 'Algarve',
+          region: 'Portugal (HQ)',
           specialistStatus: 'approved'
         };
         this.state.users.push(superUser);
@@ -1348,7 +1348,7 @@ class AppStore {
     }
     const rpUser = this.state.users.find(u => u.role === 'regional_admin') ||
                    this.state.users.find(u => u.role === 'super_admin') ||
-                   { id: 'user-super-01', name: 'Oleg (Territorial Partner)', role: 'super_admin' as UserRole, specialistStatus: 'approved' as SpecialistStatus, photoUrl: '/portimao_tp.jpg' };
+                   { id: 'user-super-01', name: 'Oleg Sugrobov', role: 'super_admin' as UserRole, specialistStatus: 'approved' as SpecialistStatus, photoUrl: '/portimao_tp.jpg' };
     job.operatorId = rpUser.id;
     job.messages.push({
       id: `msg-${Date.now()}-failover`,
@@ -2250,6 +2250,83 @@ class AppStore {
       this.state.partnerApplications = this.state.partnerApplications.map(a => 
         a.id === id ? { ...a, status } : a
       );
+      this.saveState();
+    }
+    return true;
+  }
+  public async submitSuggestion(
+    title: string,
+    content: string,
+    type: 'suggestion' | 'complaint' = 'suggestion',
+    region: string = 'Portugal'
+  ) {
+    const user = this.state.currentUser;
+    const newSug: SuggestionComplaint = {
+      id: `sug-${Date.now()}`,
+      title,
+      content,
+      type,
+      senderId: user?.id || 'guest',
+      senderName: user?.name || 'User',
+      senderRole: user?.role || 'operator',
+      region: user?.region || region,
+      status: 'pending',
+      timestamp: new Date().toISOString()
+    };
+    try {
+      const res = await fetch('/api/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify(newSug)
+      });
+      if (res.ok) {
+        await this.syncFromServer();
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to submit suggestion:', e);
+    }
+    if (!this.state.suggestions) this.state.suggestions = [];
+    this.state.suggestions = [newSug, ...this.state.suggestions];
+    this.saveState();
+    return true;
+  }
+  public async updateSuggestionStatus(id: string, status: 'pending' | 'reviewed') {
+    try {
+      const res = await fetch(`/api/suggestions/${id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        await this.syncFromServer();
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to update suggestion status:', e);
+    }
+    if (this.state.suggestions) {
+      this.state.suggestions = this.state.suggestions.map(s => s.id === id ? { ...s, status } : s);
+      this.saveState();
+    }
+    return true;
+  }
+  public async resolveSupportTicket(id: string, status: 'open' | 'closed' | 'in_progress' = 'closed') {
+    try {
+      const res = await fetch(`/api/tickets/${id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        await this.syncFromServer();
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to resolve support ticket:', e);
+    }
+    if (this.state.supportTickets) {
+      this.state.supportTickets = this.state.supportTickets.map(t => t.id === id ? { ...t, status: status as any } : t);
       this.saveState();
     }
     return true;

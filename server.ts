@@ -99,13 +99,13 @@ let inMemoryUsers: any[] = [
     id: 'user-super-01',
     email: 'ironstorm174@gmail.com',
     phone: '+351 901 000 000',
-    name: 'Oleg (Territorial Partner)',
+    name: 'Oleg Sugrobov',
     role: 'super_admin',
     specialistStatus: 'not_requested',
     dashboardNumber: '01',
     photoUrl: '/portimao_tp.jpg',
     city: 'Portimão',
-    region: 'Algarve'
+    region: 'Portugal (HQ)'
   },
   {
     id: 'user-rp-dana',
@@ -707,12 +707,12 @@ async function initDb() {
           id: 'user-super-01',
           email: 'ironstorm174@gmail.com',
           phone: '+351 901 000 000',
-          name: 'Oleg (Territorial Partner)',
+          name: 'Oleg Sugrobov',
           role: 'super_admin',
           dashboardNumber: '01',
           photoUrl: '/portimao_tp.jpg',
           city: 'Portimão',
-          region: 'Algarve'
+          region: 'Portugal (HQ)'
         },
         {
           id: 'user-super-tp',
@@ -1549,7 +1549,7 @@ async function authenticateOrRegisterUser(
              VALUES ($1, $2, $3, $4, 'super_admin', 'approved', 'Portimão', 'Algarve', '01', $5)
              ON CONFLICT (id) DO UPDATE SET email = $2, role = 'super_admin', dashboard_number = '01'
              RETURNING *`,
-            [newSuperId, normalizedEmail, normalizedPhone || '+351 901 000 000', name || 'Oleg (Territorial Partner)', photoUrl || '/portimao_tp.jpg']
+            [newSuperId, normalizedEmail, normalizedPhone || '+351 901 000 000', name || 'Oleg Sugrobov', photoUrl || '/portimao_tp.jpg']
           );
           superUserRow = insRes.rows[0];
         }
@@ -1558,13 +1558,13 @@ async function authenticateOrRegisterUser(
           id: superUserRow.id,
           email: superUserRow.email || normalizedEmail,
           phone: superUserRow.phone || normalizedPhone || '+351 901 000 000',
-          name: superUserRow.name || name || 'Oleg (Territorial Partner)',
+          name: superUserRow.name || name || 'Oleg Sugrobov',
           role: 'super_admin',
           specialistStatus: 'approved',
           isNewUser: false,
           photoUrl: superUserRow.photo_url || photoUrl || '/portimao_tp.jpg',
           city: superUserRow.city || 'Portimão',
-          region: superUserRow.region || 'Algarve',
+          region: superUserRow.region || 'Portugal (HQ)',
           dashboardNumber: '01',
           isBlocked: false,
         };
@@ -1685,12 +1685,12 @@ async function authenticateOrRegisterUser(
         id: 'user-super-01',
         email: normalizedEmail,
         phone: normalizedPhone || '+351 901 000 000',
-        name: name || 'Oleg (Territorial Partner)',
+        name: name || 'Oleg Sugrobov',
         role: 'super_admin',
         dashboardNumber: '01',
         photoUrl: photoUrl || '/portimao_tp.jpg',
         city: 'Portimão',
-        region: 'Algarve'
+        region: 'Portugal (HQ)'
       };
       inMemoryUsers.push(superUser);
     }

@@ -21,18 +21,21 @@ import { ServiceCategory, Specialist } from '../types';
 import { CATEGORY_SPECIALTIES } from '../data';
 import { store } from '../store';
 import { uploadImage } from '../utils/upload';
+import NordBasePricingCalculator, { calculateNordBasePricing, PricingCalculationResult } from './NordBasePricingCalculator';
 const CATEGORY_SUBCATEGORIES: Record<ServiceCategory, string[]> = CATEGORY_SPECIALTIES;
 function calculateLeadPrice(jobValue: number) {
   const value = Math.max(50, Math.round(jobValue || 50));
   let fee = 0;
   let formulaText = '';
   if (value <= 100) {
-    fee = Math.round(value * 0.20);
-    formulaText = '20% of job value (up to €100)';
+    fee = Math.round(value * 0.20 * 100) / 100;
+    formulaText = '20% от суммы (до €100)';
+  } else if (value <= 200) {
+    fee = Math.round((20 + (value - 100) * 0.10) * 100) / 100;
+    formulaText = '€20 + 10% от суммы свыше €100';
   } else {
-    const calculated = Math.round(value * 0.15);
-    fee = Math.max(20, calculated);
-    formulaText = '15% of job value (above €100, min. €20)';
+    fee = Math.round((30 + (value - 200) * 0.075) * 100) / 100;
+    formulaText = '€30 + 7.5% от суммы свыше €200';
   }
   const tpShare = Number((fee * 0.40).toFixed(2));
   return { leadFee: fee, tpShare, formulaText, value };
@@ -70,6 +73,7 @@ export default function CreateOrderModal({
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showHelperCalculator, setShowHelperCalculator] = useState(false);
   if (!isOpen) return null;
   const rawValue = parseFloat(estimatedValueStr) || 0;
   const calcResult = calculateLeadPrice(rawValue);
@@ -378,9 +382,19 @@ export default function CreateOrderModal({
                 <Calculator className="w-4 h-4 text-cyan-400" />
                 <span>3. Job Value Calculation & Lead Revenue</span>
               </div>
-              <span className="text-[10px] text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/20 font-bold">
-                Min. job: €50
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowHelperCalculator(true)}
+                  className="text-[11px] font-bold text-cyan-300 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm"
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>Детальный калькулятор</span>
+                </button>
+                <span className="text-[10px] text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/20 font-bold">
+                  Min. job: €50
+                </span>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
               <div>
@@ -585,6 +599,18 @@ export default function CreateOrderModal({
           </div>
         </form>
       </div>
+
+      {/* 🧮 DETAILED NORDBASE PRICING CALCULATOR MODAL */}
+      {showHelperCalculator && (
+        <NordBasePricingCalculator
+          isModal={true}
+          onClose={() => setShowHelperCalculator(false)}
+          onApply={(calc) => {
+            setEstimatedValueStr(calc.totalOrderCost.toString());
+            setShowHelperCalculator(false);
+          }}
+        />
+      )}
     </div>
   );
 }

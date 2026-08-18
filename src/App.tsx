@@ -518,7 +518,7 @@ export default function App() {
     );
   }
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#030712] via-[#050B1A] to-[#01040D] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white" id="main-app-container">
+    <div className="min-h-screen bg-gradient-to-b from-[#11141c] via-[#0e1117] to-[#0a0c10] text-slate-100 flex flex-col font-sans selection:bg-cyan-600 selection:text-white" id="main-app-container">
       {isOffline && (
         <div className="bg-amber-500/20 border-b border-amber-500/40 text-amber-200 px-4 py-2 text-xs font-semibold text-center flex items-center justify-center gap-2 backdrop-blur-md sticky top-0 z-50">
           <WifiOff className="w-4 h-4 text-amber-400 animate-pulse" />
@@ -581,7 +581,7 @@ export default function App() {
           </button>
         </div>
       )}
-      <header className="sticky top-0 z-40 py-2 sm:py-3.5 px-2.5 sm:px-6 w-full text-white border-b border-white/5 bg-[#030712]/90 backdrop-blur-md" id="app-compact-header">
+      <header className="sticky top-0 z-40 py-2 sm:py-3.5 px-2.5 sm:px-6 w-full text-white border-b border-slate-800/80 bg-[#12151e]/90 backdrop-blur-md" id="app-compact-header">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-1.5 sm:gap-3">
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <div id="brand-logo-container" className="shrink-0">
@@ -872,7 +872,7 @@ export default function App() {
                   onLogout={() => store.logout()}
                 />
               ) : (
-                <div className="bg-[#0A1128]/90 border border-blue-900/40 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
+                <div className="bg-[#161922] border border-slate-800 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
                   <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
                     <ShieldAlert className="w-8 h-8" />
                   </div>
@@ -911,7 +911,7 @@ export default function App() {
                   activeOperatorId={state.activeOperatorId}
                 />
               ) : (
-                <div className="bg-[#0A1128]/90 border border-blue-900/40 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
+                <div className="bg-[#161922] border border-slate-800 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
                   <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
                     <ShieldAlert className="w-8 h-8" />
                   </div>
@@ -957,7 +957,7 @@ export default function App() {
                   onRemoveOperatorInvite={store.removeOperatorInvite.bind(store)}
                 />
               ) : (
-                <div className="bg-[#0A1128]/90 border border-blue-900/40 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
+                <div className="bg-[#161922] border border-slate-800 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
                   <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
                     <ShieldAlert className="w-8 h-8" />
                   </div>
@@ -1010,7 +1010,7 @@ export default function App() {
                   }}
                 />
               ) : (
-                <div className="bg-[#0A1128]/90 border border-blue-900/40 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
+                <div className="bg-[#161922] border border-slate-800 rounded-3xl p-8 max-w-xl mx-auto text-center space-y-4 my-12 shadow-2xl">
                   <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
                     <ShieldAlert className="w-8 h-8" />
                   </div>

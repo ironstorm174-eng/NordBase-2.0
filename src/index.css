@@ -7,8 +7,9 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --color-cream: #F7F4EF;
   --color-terracotta: #C86B45;
-  --color-dark-bg: #030712;
-  --color-dark-card: #0A1128;
+  --color-dark-bg: #0e1117;
+  --color-dark-card: #161922;
+  --color-dark-well: #10121a;
   --color-brand-blue: #1D4ED8;
   --color-brand-cyan: #06B6D4;
 }

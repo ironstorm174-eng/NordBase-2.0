@@ -31,12 +31,14 @@ import {
   GraduationCap,
   Sparkles,
   Building2,
+  Calculator,
 } from "lucide-react";
 import { PORTUGAL_GEO } from "../lib/geo";
 import { LocationSearchInput } from "./LocationSearchInput";
 import Academy from "./Academy";
 import { KnowledgeEvolutionPanel } from "./KnowledgeEvolutionPanel";
 import TerritorialHubsManager from "./TerritorialHubsManager";
+import NordBasePricingCalculator from "./NordBasePricingCalculator";
 import { store } from "../store";
 interface AdminDashboardProps {
   jobs: Job[];
@@ -65,8 +67,9 @@ export default function AdminDashboard({
   onApproveSpecialist,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    "hubs" | "profiles" | "network" | "operators" | "alerts" | "inbox" | "audit" | "academy" | "glossary"
+    "hubs" | "profiles" | "network" | "operators" | "alerts" | "inbox" | "audit" | "academy" | "glossary" | "calculator"
   >("hubs");
+  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   // State for Regional Profiles & Freeze Control
@@ -368,6 +371,14 @@ export default function AdminDashboard({
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowCalculatorModal(true)}
+            className="bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-bold transition-all cursor-pointer shadow-md active:scale-98"
+            title="NordBase Job & Lead Calculator"
+          >
+            <Calculator className="w-4 h-4 text-cyan-400" />
+            <span>Калькулятор NordBase</span>
+          </button>
           <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-5 py-3 flex items-center gap-3 shadow-lg">
             <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]"></div>
             <span className="text-base font-bold text-white tracking-wide">Region Active</span>
@@ -378,6 +389,7 @@ export default function AdminDashboard({
       <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-900/40 p-2.5 rounded-2xl border border-white/5 overflow-x-auto shadow-md">
         {[
           { id: "hubs", label: "Territorial Hubs (4 TP Seats)", icon: Building2 },
+          { id: "calculator", label: "🧮 Calculator NordBase", icon: Calculator },
           { id: "profiles", label: "Regional Profiles (Учетные Записи)", icon: UserCheck },
           { id: "network", label: "Network Overview", icon: Globe },
           { id: "operators", label: "Operators", icon: Shield },
@@ -409,6 +421,13 @@ export default function AdminDashboard({
       {/* VIEW 0: TERRITORIAL HUBS MANAGER */}
       {activeTab === "hubs" && (
         <TerritorialHubsManager currentRegion={myRegion} />
+      )}
+
+      {/* VIEW: NORDBASE PRICING CALCULATOR */}
+      {activeTab === "calculator" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <NordBasePricingCalculator />
+        </div>
       )}
 
       {/* VIEW: REGIONAL PROFILES & FREEZE MANAGEMENT */}
@@ -1547,6 +1566,14 @@ export default function AdminDashboard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 🧮 NORDBASE PRICING CALCULATOR MODAL */}
+      {showCalculatorModal && (
+        <NordBasePricingCalculator
+          isModal={true}
+          onClose={() => setShowCalculatorModal(false)}
+        />
       )}
     </div>
   );

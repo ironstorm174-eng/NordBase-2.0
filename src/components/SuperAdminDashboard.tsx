@@ -44,6 +44,13 @@ import {
   Upload,
   X,
   Check,
+  Filter,
+  Bell,
+  CheckCircle2,
+  Layers,
+  Radio,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { PORTUGAL_GEO } from "../lib/geo";
 import { store } from "../store";
@@ -51,6 +58,22 @@ import Academy from "./Academy";
 import { KnowledgeEvolutionPanel } from "./KnowledgeEvolutionPanel";
 import TerritorialHubsManager from "./TerritorialHubsManager";
 import NetworkPortugalControlCenter from "./NetworkPortugalControlCenter";
+import NordBasePricingCalculator from "./NordBasePricingCalculator";
+
+export type SuperAdminModule = "network" | "personnel" | "operations" | "knowledge";
+export type SuperAdminSubTab =
+  | "control_center"
+  | "hubs"
+  | "calculator"
+  | "staff"
+  | "applications"
+  | "all_users"
+  | "signals"
+  | "audit"
+  | "inbox"
+  | "academy"
+  | "glossary";
+
 interface SuperAdminDashboardProps {
   jobs: Job[];
   specialists: Specialist[];
@@ -76,6 +99,7 @@ interface SuperAdminDashboardProps {
     details: string,
   ) => void;
 }
+
 export default function SuperAdminDashboard({
   jobs,
   specialists,
@@ -87,15 +111,22 @@ export default function SuperAdminDashboard({
   onUpdateJobs,
   onAddAuditLog,
 }: SuperAdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<
-    "control_center" | "all_users" | "staff" | "applications" | "alerts" | "inbox" | "audit" | "suggestions" | "academy" | "glossary"
-  >("control_center");
+  // Navigation State: 4 Primary Modules with direct SubTabs
+  const [mainModule, setMainModule] = useState<SuperAdminModule>("network");
+  const [activeTab, setActiveTab] = useState<SuperAdminSubTab>("control_center");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
   const [userStatusFilter, setUserStatusFilter] = useState<string>("all");
   const [userSearchQuery, setUserSearchQuery] = useState<string>("");
   const [selectedRDCode, setSelectedRDCode] = useState<string | null>("Pt-RD-001");
   const [takeoverInput, setTakeoverInput] = useState("");
+
+  // Signals Center Filters
+  const [signalTypeFilter, setSignalTypeFilter] = useState<"all" | "alert" | "ticket" | "suggestion" | "complaint">("all");
+  const [signalStatusFilter, setSignalStatusFilter] = useState<"all" | "pending" | "resolved">("all");
+  const [signalSearchQuery, setSignalSearchQuery] = useState<string>("");
+
   // SuperAdmin Profile & Avatar State
   const storeState = store.getState();
   const currentUser = storeState.currentUser;
@@ -105,6 +136,21 @@ export default function SuperAdminDashboard({
   const [dragActive, setDragActive] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [localAlert, setLocalAlert] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
+
+  // Sync module & subtab
+  const handleSelectModule = (mod: SuperAdminModule) => {
+    setMainModule(mod);
+    if (mod === "network") setActiveTab("control_center");
+    else if (mod === "personnel") setActiveTab("staff");
+    else if (mod === "operations") setActiveTab("signals");
+    else if (mod === "knowledge") setActiveTab("inbox");
+  };
+
+  const handleSelectSubTab = (sub: SuperAdminSubTab, mod: SuperAdminModule) => {
+    setMainModule(mod);
+    setActiveTab(sub);
+  };
 
   useEffect(() => {
     store.syncFromServer();
@@ -340,7 +386,7 @@ export default function SuperAdminDashboard({
         </div>
       )}
       {/* 🇵🇹 NATIONAL COMMAND CENTER HEADER */}
-      <div className="mb-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-white/5 pb-6">
+      <div className="mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-white/5 pb-6">
         <div className="flex items-center gap-5">
           {/* SuperAdmin Profile Avatar Trigger */}
           <div className="relative group cursor-pointer shrink-0" onClick={() => { setPastedPhotoUrl(superAdminPhoto); setShowPhotoModal(true); }}>
@@ -375,65 +421,385 @@ export default function SuperAdminDashboard({
                 <span className="text-cyan-400">/{dashboardId}</span>
               </h2>
               <span className="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold">
-                SuperAdmin
+                SuperAdmin (HQ)
               </span>
             </div>
             <p className="text-slate-400 mt-1 text-sm sm:text-base max-w-2xl">
-              National Command Center • Logged as <span className="text-white font-semibold">{currentUser?.name || "Oleg (Territorial Partner)"}</span>
+              National Command Center • Logged as <span className="text-white font-semibold">{currentUser?.name || "Oleg Sugrobov"}</span>
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
+            onClick={() => setShowCalculatorModal(true)}
+            className="bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm font-bold transition-all cursor-pointer shadow-md active:scale-98"
+            title="Калькулятор Заказа и Лида NordBase"
+          >
+            <Calculator className="w-4 h-4 text-cyan-400" />
+            <span>Калькулятор NordBase</span>
+          </button>
+          <button
             onClick={() => {
               setPastedPhotoUrl(superAdminPhoto);
               setShowPhotoModal(true);
             }}
-            className="bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-bold transition-all cursor-pointer shadow-sm"
+            className="bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm font-bold transition-all cursor-pointer shadow-sm"
           >
             <Camera className="w-4 h-4 text-cyan-400" />
             <span>Upload Avatar</span>
           </button>
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-5 py-3 flex items-center gap-3 shadow-lg">
-            <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]"></div>
-            <span className="text-base font-bold text-white tracking-wide">
-              System Active
+          <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-lg">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]"></div>
+            <span className="text-sm font-bold text-white tracking-wide">
+              Network Online
             </span>
           </div>
         </div>
       </div>
-      {/* 🧭 NAVIGATION TABS (Top Bar) */}
-      <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-900/40 p-2.5 rounded-2xl border border-white/5 overflow-x-auto shadow-md">
-        {[
-          { id: "control_center", label: "Network Portugal Control Center", icon: Globe },
-          { id: "all_users", label: "Profile & Freeze Control (Управление Профилями)", icon: UserCheck },
-          { id: "staff", label: "Partners", icon: Shield },
-          { id: "applications", label: "TP / RP Applications", icon: Users },
-          { id: "alerts", label: "Alerts & Tickets", icon: AlertTriangle },
-          { id: "inbox", label: "Inbox & Chat", icon: Inbox },
-          { id: "audit", label: "Security Audit Logs", icon: ShieldAlert },
-          { id: "suggestions", label: "Suggestions Box", icon: Mail },
-          { id: "glossary", label: "AI Glossary & Evolution", icon: Sparkles },
-          { id: "academy", label: "Academy", icon: GraduationCap },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2.5 px-6 py-4 text-base font-bold rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
-                isActive
-                  ? "bg-cyan-600 border-cyan-500 text-white shadow-[0_4px_15px_rgba(6,182,212,0.3)]"
-                  : "bg-transparent border-transparent text-slate-400 hover:bg-slate-800/70 hover:text-white"
+
+      {/* 📊 LIVE KPI STATUS BAR (National Network Snapshot) */}
+      {(() => {
+        const activeHubsCount = 4;
+        const totalHubsCount = 4;
+        const activePartnersCount = users.filter(u => u.role === "super_admin" || u.role === "regional_admin" || u.role === "operator").length;
+        const activeJobsCount = jobs.filter(j => j.status !== "completed" && j.status !== "cancelled").length;
+        const pendingPartnerAppsCount = (store.getState().partnerApplications || []).filter(a => a.status === "pending").length;
+        const openSupportTicketsCount = (supportTickets || []).filter(t => t.status === "open").length;
+        const pendingSuggestionsCount = (suggestions || []).filter(s => s.status === "pending").length;
+        const totalPendingSignals = openSupportTicketsCount + pendingSuggestionsCount;
+
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-6">
+            <div 
+              onClick={() => handleSelectSubTab("hubs", "network")}
+              className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-4 transition-all cursor-pointer shadow-md group"
+            >
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <span>Терр. Хабы</span>
+                <Building2 className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-white font-mono">{activeHubsCount} / {totalHubsCount}</span>
+                <span className="text-xs text-emerald-400 font-bold">100%</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Север • Центр • Лиссабон • Алгарве</div>
+            </div>
+
+            <div 
+              onClick={() => handleSelectSubTab("staff", "personnel")}
+              className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/40 rounded-2xl p-4 transition-all cursor-pointer shadow-md group"
+            >
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <span>Партнеры HQ / RD / TP</span>
+                <Shield className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-indigo-400 font-mono">{activePartnersCount}</span>
+                <span className="text-xs text-slate-400">в реестре</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Управление и делегирование</div>
+            </div>
+
+            <div 
+              onClick={() => handleSelectSubTab("all_users", "personnel")}
+              className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 transition-all cursor-pointer shadow-md group"
+            >
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <span>Специалисты</span>
+                <UserCheck className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-emerald-400 font-mono">{specialists.length}</span>
+                <span className="text-xs text-slate-400">в базе</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Все 18 округов Португалии</div>
+            </div>
+
+            <div 
+              onClick={() => handleSelectSubTab("control_center", "network")}
+              className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 transition-all cursor-pointer shadow-md group"
+            >
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <span>Активные Заявки</span>
+                <Activity className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-amber-400 font-mono">{activeJobsCount}</span>
+                <span className="text-xs text-slate-400">в процессе</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Гео-радар & лидогенерация</div>
+            </div>
+
+            <div 
+              onClick={() => handleSelectSubTab("signals", "operations")}
+              className={`bg-slate-900/80 hover:bg-slate-900 border rounded-2xl p-4 transition-all cursor-pointer shadow-md group ${
+                totalPendingSignals > 0 ? "border-rose-500/50 hover:border-rose-400 shadow-rose-950/20" : "border-slate-800 hover:border-slate-700"
               }`}
             >
-              <Icon className="w-5 h-5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <span>Входящие Сигналы</span>
+                <Bell className={`w-4 h-4 ${totalPendingSignals > 0 ? "text-rose-400 animate-bounce" : "text-slate-400"} group-hover:scale-110 transition-transform`} />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className={`text-2xl font-black font-mono ${totalPendingSignals > 0 ? "text-rose-400" : "text-slate-300"}`}>{totalPendingSignals}</span>
+                <span className={`text-xs font-bold ${totalPendingSignals > 0 ? "text-rose-400" : "text-slate-500"}`}>
+                  {totalPendingSignals > 0 ? "требуют внимания" : "все чисто"}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Тикеты, идеи & SLA сигналы</div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 🧭 PRIMARY 4 COMMAND MODULES */}
+      {(() => {
+        const pendingPartnerAppsCount = (store.getState().partnerApplications || []).filter(a => a.status === "pending").length;
+        const openSupportTicketsCount = (supportTickets || []).filter(t => t.status === "open").length;
+        const pendingSuggestionsCount = (suggestions || []).filter(s => s.status === "pending").length;
+        const totalPendingSignals = openSupportTicketsCount + pendingSuggestionsCount;
+
+        const modules: {
+          id: SuperAdminModule;
+          title: string;
+          subtitle: string;
+          icon: any;
+          badge: string | null;
+          activeColor: string;
+        }[] = [
+          {
+            id: "network",
+            title: "1. Мастер-Сеть",
+            subtitle: "Control Center & Hubs",
+            icon: Globe,
+            badge: null,
+            activeColor: "border-cyan-500 ring-cyan-500/30 text-cyan-400",
+          },
+          {
+            id: "personnel",
+            title: "2. Кадры и Партнеры",
+            subtitle: "Staff, Licensing & Profiles",
+            icon: Shield,
+            badge: pendingPartnerAppsCount > 0 ? `${pendingPartnerAppsCount} заявок` : null,
+            activeColor: "border-indigo-500 ring-indigo-500/30 text-indigo-400",
+          },
+          {
+            id: "operations",
+            title: "3. Сигналы и Аудит",
+            subtitle: "Alerts, Tickets & Security",
+            icon: AlertTriangle,
+            badge: totalPendingSignals > 0 ? `${totalPendingSignals} новых` : null,
+            activeColor: "border-rose-500 ring-rose-500/30 text-rose-400",
+          },
+          {
+            id: "knowledge",
+            title: "4. Связь и Академия",
+            subtitle: "Inbox, Academy & Evolution",
+            icon: MessageCircle,
+            badge: null,
+            activeColor: "border-emerald-500 ring-emerald-500/30 text-emerald-400",
+          },
+        ];
+
+        return (
+          <div className="space-y-4 mb-8">
+            {/* 4 Main Module Selector Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {modules.map((mod) => {
+                const Icon = mod.icon;
+                const isSelected = mainModule === mod.id;
+                return (
+                  <button
+                    key={mod.id}
+                    onClick={() => handleSelectModule(mod.id)}
+                    className={`relative text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 shadow-md ${
+                      isSelected
+                        ? `bg-slate-900 border-2 ${mod.activeColor} shadow-[0_0_20px_rgba(6,182,212,0.2)] ring-1`
+                        : "bg-slate-900/60 border-slate-800/90 hover:bg-slate-800/80 hover:border-slate-700 text-slate-400"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl border ${
+                        isSelected
+                          ? "bg-slate-800 text-white border-white/10"
+                          : "bg-slate-950/60 text-slate-400 border-slate-800"
+                      }`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className={`text-base font-black tracking-tight ${isSelected ? "text-white" : "text-slate-200"}`}>
+                          {mod.title}
+                        </div>
+                        <div className="text-xs text-slate-400 font-medium">{mod.subtitle}</div>
+                      </div>
+                    </div>
+                    {mod.badge && (
+                      <span className="px-2.5 py-1 text-xs font-extrabold rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse">
+                        {mod.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 📍 SECONDARY SUB-NAVIGATION (Sub-tabs for Active Module) */}
+            <div className="flex flex-wrap items-center gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 overflow-x-auto shadow-inner">
+              {mainModule === "network" && (
+                <>
+                  <button
+                    onClick={() => setActiveTab("control_center")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "control_center"
+                        ? "bg-cyan-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Globe className="w-4 h-4" />
+                    <span>🗺️ Центр Управления Сетью (Control Center)</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("hubs")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "hubs"
+                        ? "bg-cyan-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>🏢 Территориальные Хабы (Territorial Hubs)</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("calculator")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "calculator"
+                        ? "bg-cyan-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Calculator className="w-4 h-4" />
+                    <span>🧮 Калькулятор NordBase</span>
+                  </button>
+                </>
+              )}
+
+              {mainModule === "personnel" && (
+                <>
+                  <button
+                    onClick={() => setActiveTab("staff")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "staff"
+                        ? "bg-indigo-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>🛡️ Реестр Партнеров (Staff & Takeover)</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("applications")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer relative ${
+                      activeTab === "applications"
+                        ? "bg-indigo-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>📋 Заявки на Лицензии (TP/RP)</span>
+                    {pendingPartnerAppsCount > 0 && (
+                      <span className="ml-1.5 px-2 py-0.5 text-[11px] font-black rounded-full bg-amber-400 text-slate-950">
+                        {pendingPartnerAppsCount}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("all_users")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "all_users"
+                        ? "bg-indigo-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    <span>👤 База Профилей & Заморозка</span>
+                  </button>
+                </>
+              )}
+
+              {mainModule === "operations" && (
+                <>
+                  <button
+                    onClick={() => setActiveTab("signals")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer relative ${
+                      activeTab === "signals"
+                        ? "bg-rose-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>🚨 Центр Сигналов, Тикетов и Идей</span>
+                    {totalPendingSignals > 0 && (
+                      <span className="ml-1.5 px-2 py-0.5 text-[11px] font-black rounded-full bg-rose-400 text-slate-950">
+                        {totalPendingSignals}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("audit")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "audit"
+                        ? "bg-rose-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    <span>📜 Журнал Безопасности (Audit Logs)</span>
+                  </button>
+                </>
+              )}
+
+              {mainModule === "knowledge" && (
+                <>
+                  <button
+                    onClick={() => setActiveTab("inbox")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "inbox"
+                        ? "bg-emerald-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Inbox className="w-4 h-4" />
+                    <span>💬 Каналы Связи и Чат</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("academy")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "academy"
+                        ? "bg-emerald-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                    <span>🎓 Академия NordBase</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("glossary")}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                      activeTab === "glossary"
+                        ? "bg-emerald-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>✨ AI Глоссарий и Эволюция</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 💻 PERSPECTIVE VIEWS */}
 
       {/* VIEW: CONTROL CENTER (STAGE 1 NETWORK PORTUGAL) */}
@@ -447,6 +813,20 @@ export default function SuperAdminDashboard({
           onUpdateJobs={onUpdateJobs}
           onAddAuditLog={onAddAuditLog}
         />
+      )}
+
+      {/* VIEW: TERRITORIAL HUBS (STAGE 2 HUB MULTI-TENANCY) */}
+      {activeTab === "hubs" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <TerritorialHubsManager isSuperAdmin={true} currentRegion="All" />
+        </div>
+      )}
+
+      {/* VIEW: NORDBASE PRICING CALCULATOR */}
+      {activeTab === "calculator" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <NordBasePricingCalculator />
+        </div>
       )}
 
 
@@ -667,16 +1047,16 @@ export default function SuperAdminDashboard({
                     filteredProfiles.map((u) => {
                       const isFrozen = !!u.isBlocked;
                       const roleLabel = 
-                        u.role === 'super_admin' ? 'Territorial Partner (TP)' :
+                        u.role === 'super_admin' ? 'Super Admin (HQ)' :
                         u.role === 'regional_admin' ? 'Regional Director (RD)' :
-                        u.role === 'operator' ? 'Territory Partner' :
+                        u.role === 'operator' ? 'Territory Partner (TP)' :
                         u.role === 'specialist' ? 'Specialist' : 'Customer';
                       
                       const roleBadgeClass = 
-                        u.role === 'super_admin' ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' :
-                        u.role === 'regional_admin' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' :
-                        u.role === 'operator' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
-                        u.role === 'specialist' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                        u.role === 'super_admin' ? 'bg-amber-500/15 text-amber-300 border-amber-400/40 shadow-sm' :
+                        u.role === 'regional_admin' ? 'bg-purple-500/15 text-purple-300 border-purple-500/40' :
+                        u.role === 'operator' ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40' :
+                        u.role === 'specialist' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' :
                         'bg-slate-800 text-slate-300 border-slate-700';
 
                       return (
@@ -800,113 +1180,40 @@ export default function SuperAdminDashboard({
       {/* VIEW 2: STAFF MANAGEMENT (PARTNERS) */}
       {activeTab === "staff" && (
         <div className="space-y-8">
-          {/* REMINDER CARD: RP LOGIN & ACCESS GUIDE */}
-          <div className="bg-gradient-to-r from-blue-950/80 via-slate-900/90 to-purple-950/80 border-2 border-cyan-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden animate-in fade-in duration-200">
-            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-            
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-cyan-500/20">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shrink-0 shadow-lg">
-                  <Key className="w-6 h-6 animate-pulse" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-mono text-[10px] font-bold rounded-full uppercase tracking-wider">
-                      📌 Памятка: Вход и Доступ для RP (Regional Partner / Regional Director)
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-black text-white font-display">
-                    Как войти на сайт под аккаунтом Регионального Партнера (RP)
-                  </h3>
-                  <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-                    Полная инструкция и способы авторизации для управляющих партнеров регионов (RP / Regional Director).
-                  </p>
-                </div>
+          {/* QUICK TAKEOVER & CONSOLE ACCESS TOOLBAR */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                <Zap className="w-5 h-5 text-amber-400" />
               </div>
-
-              {/* Quick Takeover Input Box */}
-              <div className="bg-slate-950/80 border border-cyan-500/30 rounded-2xl p-4 shrink-0 space-y-2 min-w-[280px]">
-                <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Мгновенный вход по Коду (Pt-RD-...)</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={takeoverInput}
-                    onChange={(e) => setTakeoverInput(e.target.value)}
-                    placeholder="например: Pt-RD-001"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:border-cyan-400 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (takeoverInput.trim()) {
-                        handleTakeoverByNumber(takeoverInput.trim());
-                      }
-                    }}
-                    className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs rounded-xl transition-all cursor-pointer shrink-0 shadow-md hover:scale-105"
-                  >
-                    Войти ⚡
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* 3 Main Login Methods Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Method 1: Dedicated RP Portal */}
-              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-cyan-500/30 transition-colors">
-                <div className="font-bold text-cyan-300 text-xs flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono text-[10px] shrink-0">1</span>
-                  <span>Вход для RP: nordbase.pt/rp/portugal</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Единый вход для Региональных Партнеров (RP). Вход выполняется через <strong>Google OAuth</strong> или e-mail <strong>без ввода номера дашборда</strong>.
-                </p>
-              </div>
-
-              {/* Method 2: Dedicated TP Portal */}
-              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-cyan-500/30 transition-colors">
-                <div className="font-bold text-cyan-300 text-xs flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono text-[10px] shrink-0">2</span>
-                  <span>Вход для TP: nordbase.pt/tp/portugal</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Единый портал для Территориальных Партнеров (TP/Операторов). Позволяет входить через Google OAuth без кода. Если партнер переходит на <code className="bg-slate-900 px-1.5 py-0.5 rounded text-cyan-300 font-mono">nordbase.pt</code>, он работает как Заказчик.
-                </p>
-              </div>
-
-              {/* Method 3: Impersonate / Direct Access */}
-              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-cyan-500/30 transition-colors">
-                <div className="font-bold text-cyan-300 text-xs flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-mono text-[10px] shrink-0">3</span>
-                  <span>Быстрый Перехват из Админки</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Суперадмин может войти в любой дашборд RP/TP в 1 клик, нажав кнопку <span className="text-amber-400 font-bold">⚡ Manage</span> в списке партнеров или введя код в поле выше.
+              <div>
+                <h4 className="text-base font-bold text-white">
+                  Консоль быстрого перехвата и входа в дашборд (Impersonation)
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Мгновенный вход в рабочий терминал любого Регионального (RD) или Территориального (TP) партнера без ввода пароля.
                 </p>
               </div>
             </div>
 
-            {/* Quick Access Badges for Active RPs */}
-            <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-slate-400 font-bold">Быстрый запуск действующих RP аккаунтов:</span>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <input
+                type="text"
+                value={takeoverInput}
+                onChange={(e) => setTakeoverInput(e.target.value)}
+                placeholder="Код: Pt-RD-001, PT-OP-001..."
+                className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white font-mono focus:border-cyan-400 focus:outline-none w-full md:w-60"
+              />
               <button
                 type="button"
-                onClick={() => handleTakeoverByNumber("Pt-RD-001")}
-                className="px-3 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 rounded-lg font-mono text-[11px] transition-all cursor-pointer flex items-center gap-1"
+                onClick={() => {
+                  if (takeoverInput.trim()) {
+                    handleTakeoverByNumber(takeoverInput.trim());
+                  }
+                }}
+                className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs rounded-xl transition-all cursor-pointer shrink-0 shadow-md hover:scale-105"
               >
-                <Zap className="w-3 h-3 text-amber-400" />
-                <span>Pt-RD-001 (Algarve Director)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTakeoverByNumber("Pt-RD-004")}
-                className="px-3 py-1 bg-slate-900 hover:bg-cyan-950 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 rounded-lg font-mono text-[11px] transition-all cursor-pointer flex items-center gap-1"
-              >
-                <Zap className="w-3 h-3 text-amber-400" />
-                <span>Pt-RD-004 (Faro / Central)</span>
+                Войти ⚡
               </button>
             </div>
           </div>
@@ -1015,10 +1322,10 @@ export default function SuperAdminDashboard({
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-cyan-400 focus:outline-none appearance-none"
                 >
                   {canManageSupers && (
-                    <option value="super_admin">Territorial Partner (TP)</option>
+                    <option value="super_admin">Super Admin (HQ Master)</option>
                   )}
-                  <option value="regional_admin">Regional Director</option>
-                  <option value="operator">Territory Partner</option>
+                  <option value="regional_admin">Regional Director (RD)</option>
+                  <option value="operator">Territory Partner (TP)</option>
                 </select>
               </div>
               <div>
@@ -1085,8 +1392,7 @@ export default function SuperAdminDashboard({
                   )
                   .map((u) => {
                     const isExpanded = expandedPartnerId === u.id;
-                    const canEdit = u.role !== "super_admin" || canManageSupers; // 01 can edit supers, others can't
-                    // Hide other supers from 02-04 maybe? The prompt didn't say hide them, but they can't manage them.
+                    const canEdit = u.role !== "super_admin" || canManageSupers;
                     return (
                       <div
                         key={u.id}
@@ -1110,21 +1416,21 @@ export default function SuperAdminDashboard({
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-bold ${
                                 u.role === "super_admin"
-                                  ? "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                                  ? "bg-amber-500/15 text-amber-300 border border-amber-400/40 shadow-sm"
                                   : u.role === "regional_admin"
-                                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/30"
-                                    : "bg-blue-500/10 text-blue-400 border border-blue-500/30"
+                                    ? "bg-purple-500/15 text-purple-300 border border-purple-500/40"
+                                    : "bg-cyan-500/15 text-cyan-300 border border-cyan-500/40"
                               }`}
                             >
                               {u.role === "super_admin"
-                                ? "Territorial Partner (TP)"
+                                ? "Super Admin (HQ)"
                                 : u.role === "regional_admin"
-                                  ? "Regional Director"
-                                  : "Territory Partner"}
+                                  ? "Regional Director (RD)"
+                                  : "Territory Partner (TP)"}
                             </span>
                           </div>
                           <div className="col-span-2 text-slate-300 text-sm">
-                            {u.role === "super_admin" ? "All" : (u.region || "Region")}
+                            {u.role === "super_admin" ? "All (HQ)" : (u.region || "Region")}
                           </div>
                           <div className="col-span-2 text-slate-300 font-mono text-sm">
                             {u.dashboardNumber || "-"}
@@ -1136,7 +1442,7 @@ export default function SuperAdminDashboard({
                                 store.impersonateUser(u);
                               }}
                               className="bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 border border-cyan-500/40 rounded-lg px-3 py-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow"
-                              title="Manage dashboard (Switch to self)"
+                              title="Manage dashboard (Switch to partner)"
                             >
                               <Zap className="w-3.5 h-3.5 text-cyan-400" />
                               <span className="hidden xl:inline">Manage</span>
@@ -1146,10 +1452,10 @@ export default function SuperAdminDashboard({
                                 e.stopPropagation();
                                 handleCallToChat(u.id);
                               }}
-                              className="p-2 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors"
+                              className="p-2 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors cursor-pointer"
                               title="Call to chat"
                             >
-                              <MessageCircle className="w-5 h-5" />
+                              <MessageCircle className="w-4 h-4" />
                             </button>
                             {canEdit && (
                               <button
@@ -1157,10 +1463,10 @@ export default function SuperAdminDashboard({
                                   e.stopPropagation();
                                   handleToggleBlock(u.id, !!u.isBlocked, u.name);
                                 }}
-                                className={`p-2 rounded-lg transition-colors ${u.isBlocked ? 'bg-red-500/20 text-red-400' : 'hover:bg-orange-500/20 text-slate-500 hover:text-orange-400'}`}
+                                className={`p-2 rounded-lg transition-colors cursor-pointer ${u.isBlocked ? 'bg-red-500/20 text-red-400' : 'hover:bg-orange-500/20 text-slate-500 hover:text-orange-400'}`}
                                 title={u.isBlocked ? "Unblock partner" : "Block partner"}
                               >
-                                <Lock className="w-5 h-5" />
+                                <Lock className="w-4 h-4" />
                               </button>
                             )}
                             {canEdit && (
@@ -1169,10 +1475,10 @@ export default function SuperAdminDashboard({
                                   e.stopPropagation();
                                   setPartnerToDelete({ id: u.id, name: u.name });
                                 }}
-                                className="p-2 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors"
+                                className="p-2 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors cursor-pointer"
                                 title="Remove partner"
                               >
-                                <UserX className="w-5 h-5" />
+                                <UserX className="w-4 h-4" />
                               </button>
                             )}
                             {isExpanded ? (
@@ -1272,59 +1578,332 @@ export default function SuperAdminDashboard({
           </div>
         </div>
       )}
-      {/* VIEW 3: ALERTS & TICKETS */}
-      {activeTab === "alerts" && (
-        <div className="space-y-6">
-          <h3 className="text-xl font-black text-white mb-6">
-            System Alerts & Support Tickets
-          </h3>
-          <div className="flex flex-col gap-5">
-            {supportTickets && supportTickets.length > 0 ? (
-              supportTickets.map((ticket) => (
-                <div
-                  key={ticket.id}
-                  className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 flex items-start gap-6 hover:border-slate-700 transition-colors shadow-lg"
-                >
-                  <div className="bg-rose-500/10 p-4 rounded-full text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
-                    <AlertTriangle className="w-8 h-8" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="text-xl font-bold text-white">
-                        {ticket.title}
-                      </h4>
-                      <span className="text-sm text-slate-500 font-mono bg-slate-950 px-3 py-1 rounded-lg">
-                        {ticket.createdAt}
-                      </span>
-                    </div>
-                    <p className="text-base text-slate-300 leading-relaxed">
-                      {ticket.description}
-                    </p>
-                    <div className="mt-6 flex gap-3">
-                      <span
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold ${
-                          ticket.status === "open"
-                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                            : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                        }`}
-                      >
-                        {ticket.status.toUpperCase()}
-                      </span>
-                    </div>
+      {/* VIEW 3: UNIFIED SIGNALS, TICKETS & INITIATIVES CENTER */}
+      {activeTab === "signals" && (() => {
+        // Prepare unified list of items: Support Tickets + Suggestions/Complaints + Synthetic SLA alerts
+        type UnifiedSignal = {
+          id: string;
+          type: "alert" | "ticket" | "suggestion" | "complaint";
+          title: string;
+          content: string;
+          senderName: string;
+          senderRole: string;
+          senderId?: string;
+          region: string;
+          status: "pending" | "resolved" | "open" | "closed";
+          timestamp: string;
+          originalItem?: any;
+        };
+
+        const signalList: UnifiedSignal[] = [];
+
+        // 1. Add Support Tickets
+        (supportTickets || []).forEach(ticket => {
+          signalList.push({
+            id: ticket.id,
+            type: "ticket",
+            title: ticket.title,
+            content: ticket.description,
+            senderName: ticket.creatorName || "Partner",
+            senderRole: "operator",
+            senderId: ticket.creatorId,
+            region: "Portugal",
+            status: ticket.status === "open" ? "pending" : "resolved",
+            timestamp: ticket.createdAt,
+            originalItem: ticket
+          });
+        });
+
+        // 2. Add Suggestions & Complaints
+        (suggestions || []).forEach(item => {
+          signalList.push({
+            id: item.id,
+            type: item.type === "complaint" ? "complaint" : "suggestion",
+            title: item.title,
+            content: item.content,
+            senderName: item.senderName,
+            senderRole: item.senderRole || "regional_admin",
+            senderId: item.senderId,
+            region: item.region || "Portugal",
+            status: item.status === "pending" ? "pending" : "resolved",
+            timestamp: item.timestamp,
+            originalItem: item
+          });
+        });
+
+        // Filter signal list
+        const filteredSignals = signalList.filter(sig => {
+          // Type filter
+          if (signalTypeFilter !== "all" && sig.type !== signalTypeFilter) return false;
+          // Status filter
+          if (signalStatusFilter === "pending" && sig.status !== "pending") return false;
+          if (signalStatusFilter === "resolved" && sig.status !== "resolved") return false;
+          // Search query
+          if (signalSearchQuery.trim()) {
+            const query = signalSearchQuery.toLowerCase();
+            return (
+              sig.title.toLowerCase().includes(query) ||
+              sig.content.toLowerCase().includes(query) ||
+              sig.senderName.toLowerCase().includes(query) ||
+              sig.region.toLowerCase().includes(query)
+            );
+          }
+          return true;
+        });
+
+        const pendingCount = signalList.filter(s => s.status === "pending").length;
+        const ticketsCount = signalList.filter(s => s.type === "ticket").length;
+        const suggestionsCount = signalList.filter(s => s.type === "suggestion").length;
+        const complaintsCount = signalList.filter(s => s.type === "complaint").length;
+
+        return (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Header with KPI cards & Filters */}
+            <div className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-6">
+                <div>
+                  <h3 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                    <AlertTriangle className="w-8 h-8 text-rose-400" />
+                    <span>Центр Сигналов, Тикетов и Идей</span>
+                  </h3>
+                  <p className="text-slate-400 text-sm mt-1 max-w-3xl">
+                    Единый центр обработки инцидентов, обращений в техподдержку, предложений по улучшению и жалоб от Региональных Директоров (RD) и Партнеров (TP).
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="px-4 py-2 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm font-black flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
+                    <span>{pendingCount} активных</span>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-20 bg-slate-900/40 border border-slate-800 border-dashed rounded-3xl">
-                <Shield className="w-16 h-16 text-slate-600 mx-auto mb-5" />
-                <p className="text-slate-400 font-bold text-lg">
-                  No active alerts or tickets.
-                </p>
               </div>
-            )}
+
+              {/* Filtering Controls */}
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                {/* Type Filter Pills */}
+                <div className="flex flex-wrap items-center gap-2 bg-slate-950/60 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
+                  <button
+                    onClick={() => setSignalTypeFilter("all")}
+                    className={`px-4 py-2 rounded-xl transition-all cursor-pointer ${
+                      signalTypeFilter === "all"
+                        ? "bg-cyan-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Все ({signalList.length})
+                  </button>
+                  <button
+                    onClick={() => setSignalTypeFilter("ticket")}
+                    className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                      signalTypeFilter === "ticket"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <span>🎫 Тикеты</span>
+                    <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded-full">{ticketsCount}</span>
+                  </button>
+                  <button
+                    onClick={() => setSignalTypeFilter("suggestion")}
+                    className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                      signalTypeFilter === "suggestion"
+                        ? "bg-emerald-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <span>💡 Предложения</span>
+                    <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded-full">{suggestionsCount}</span>
+                  </button>
+                  <button
+                    onClick={() => setSignalTypeFilter("complaint")}
+                    className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                      signalTypeFilter === "complaint"
+                        ? "bg-rose-600 text-white shadow-md"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <span>⚠️ Жалобы</span>
+                    <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded-full">{complaintsCount}</span>
+                  </button>
+                </div>
+
+                {/* Status Filter & Search */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5 bg-slate-950/60 p-1.5 rounded-2xl border border-slate-800 text-xs font-bold">
+                    <button
+                      onClick={() => setSignalStatusFilter("all")}
+                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                        signalStatusFilter === "all" ? "bg-slate-800 text-white" : "text-slate-400"
+                      }`}
+                    >
+                      Все
+                    </button>
+                    <button
+                      onClick={() => setSignalStatusFilter("pending")}
+                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                        signalStatusFilter === "pending" ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "text-slate-400"
+                      }`}
+                    >
+                      ⏳ В обработке
+                    </button>
+                    <button
+                      onClick={() => setSignalStatusFilter("resolved")}
+                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                        signalStatusFilter === "resolved" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "text-slate-400"
+                      }`}
+                    >
+                      ✅ Закрытые
+                    </button>
+                  </div>
+
+                  <div className="relative flex-1 sm:w-64">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Поиск по теме, автору, тексту..."
+                      value={signalSearchQuery}
+                      onChange={(e) => setSignalSearchQuery(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Signal List Feed */}
+            <div className="space-y-4">
+              {filteredSignals.length > 0 ? (
+                filteredSignals.map((sig) => {
+                  const isPending = sig.status === "pending";
+                  return (
+                    <div
+                      key={sig.id}
+                      className={`bg-slate-900/70 border rounded-3xl p-6 sm:p-7 transition-all shadow-md ${
+                        isPending
+                          ? "border-slate-800 hover:border-slate-700 bg-slate-900/90"
+                          : "border-slate-900/40 opacity-75"
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            {sig.type === "ticket" && (
+                              <span className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1.5">
+                                <span>🎫 ТИКЕТ ПОДДЕРЖКИ</span>
+                              </span>
+                            )}
+                            {sig.type === "suggestion" && (
+                              <span className="px-3 py-1 rounded-lg text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center gap-1.5">
+                                <span>💡 ИДЕЯ / ПРЕДЛОЖЕНИЕ</span>
+                              </span>
+                            )}
+                            {sig.type === "complaint" && (
+                              <span className="px-3 py-1 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1.5">
+                                <span>⚠️ ЖАЛОБА / ЭСКАЛАЦИЯ</span>
+                              </span>
+                            )}
+
+                            <span
+                              className={`px-3 py-1 rounded-lg text-xs font-bold border ${
+                                isPending
+                                  ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              }`}
+                            >
+                              {isPending ? "⏳ В ОБРАБОТКЕ" : "✔ ЗАКРЫТО / РАССМОТРЕНО"}
+                            </span>
+
+                            <span className="text-xs text-slate-500 font-mono">
+                              ID: {sig.id}
+                            </span>
+                          </div>
+
+                          <h4 className="text-xl font-bold text-white mt-2">
+                            {sig.title}
+                          </h4>
+                        </div>
+
+                        <div className="text-left md:text-right shrink-0">
+                          <div className="text-sm font-bold text-white flex items-center md:justify-end gap-2">
+                            <span>{sig.senderName}</span>
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1">
+                            {sig.senderRole === "regional_admin" ? "Regional Director (RD)" : sig.senderRole === "operator" ? "Territory Partner (TP)" : sig.senderRole} • <span className="text-cyan-400 font-bold">{sig.region}</span>
+                          </div>
+                          <div className="text-xs text-slate-500 font-mono mt-1">
+                            {new Date(sig.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-base text-slate-300 leading-relaxed bg-slate-950/40 p-4 sm:p-5 rounded-2xl border border-white/5 whitespace-pre-wrap">
+                        {sig.content}
+                      </div>
+
+                      {/* Action Bar */}
+                      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/5">
+                        <div className="flex items-center gap-2">
+                          {sig.senderId && (
+                            <button
+                              onClick={() => handleCallToChat(sig.senderId!)}
+                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+                            >
+                              <MessageCircle className="w-4 h-4 text-emerald-400" />
+                              <span>Открыть Чат с Автором</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {isPending && (
+                            <>
+                              {sig.type === "ticket" ? (
+                                <button
+                                  onClick={async () => {
+                                    await store.resolveSupportTicket(sig.id, "closed");
+                                    setLocalAlert({ type: "success", text: `Тикет ${sig.id} успешно закрыт!` });
+                                    setTimeout(() => setLocalAlert(null), 3000);
+                                  }}
+                                  className="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Check className="w-4 h-4" />
+                                  <span>Закрыть Тикет</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={async () => {
+                                    await store.updateSuggestionStatus(sig.id, "reviewed");
+                                    setLocalAlert({ type: "success", text: `Обращение ${sig.id} отмечено как рассмотренное!` });
+                                    setTimeout(() => setLocalAlert(null), 3000);
+                                  }}
+                                  className="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Check className="w-4 h-4" />
+                                  <span>Отметить Проверенным</span>
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-20 bg-slate-900/40 border border-slate-800 border-dashed rounded-3xl p-8">
+                  <Shield className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                  <h4 className="text-lg font-bold text-slate-300">
+                    Нет активных сигналов по заданным фильтрам
+                  </h4>
+                  <p className="text-slate-500 text-sm mt-1 max-w-md mx-auto">
+                    Все тикеты техподдержки, жалобы и предложения от Региональных Директоров проверены и обработаны.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* VIEW 4: INBOX & CHAT */}
       {activeTab === "inbox" && (
         <div className="bg-slate-900/60 border border-slate-800 rounded-3xl overflow-hidden flex h-[700px] shadow-xl">
@@ -1366,10 +1945,10 @@ export default function SuperAdminDashboard({
                         className={`text-sm truncate ${activeChatUserId === contact.id ? "text-blue-200" : "text-slate-500"}`}
                       >
                         {contact.role === "regional_admin"
-                          ? "Regional Director"
+                          ? "Regional Director (RD)"
                           : contact.role === "super_admin"
-                            ? "Territorial Partner (TP)"
-                            : "Territory Partner"}
+                            ? "Super Admin (HQ)"
+                            : "Territorial Partner (TP)"}
                       </div>
                     </div>
                   </button>
@@ -1398,10 +1977,10 @@ export default function SuperAdminDashboard({
                       </h3>
                       <p className="text-sm text-slate-400">
                         {selectedChatUser.role === "regional_admin"
-                          ? "Regional Director"
+                          ? "Regional Director (RD)"
                           : selectedChatUser.role === "super_admin"
-                            ? "Territorial Partner (TP)"
-                            : "Territory Partner"}
+                            ? "Super Admin (HQ)"
+                            : "Territorial Partner (TP)"}
                       </p>
                     </div>
                   </div>
@@ -1546,109 +2125,6 @@ export default function SuperAdminDashboard({
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-      {/* VIEW 6: SUGGESTIONS & COMPLAINTS BOX */}
-      {activeTab === "suggestions" && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6 animate-in fade-in duration-300">
-          <div>
-            <h3 className="text-2xl font-black text-white flex items-center gap-2">
-              <Mail className="w-7 h-7 text-cyan-400" />
-              Suggestions & Complaints Box
-            </h3>
-            <p className="text-slate-400 text-sm mt-1">
-              Read feedback, ideas, and incident escalations submitted by Regional Directors across Portugal.
-            </p>
-          </div>
-          <div className="space-y-4">
-            {suggestions.length > 0 ? (
-              suggestions.map((item) => (
-                <div
-                  key={item.id}
-                  className={`border rounded-2xl p-6 transition-all bg-slate-950/30 ${
-                    item.status === 'pending'
-                      ? 'border-slate-800 hover:border-cyan-500/30 shadow-md'
-                      : 'border-slate-900/40 opacity-70'
-                  }`}
-                >
-                  <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <span
-                          className={`px-3 py-1 rounded-lg text-xs font-bold border ${
-                            item.type === "suggestion"
-                              ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
-                              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                          }`}
-                        >
-                          {item.type === "suggestion" ? "💡 SUGGESTION" : "⚠️ COMPLAINT"}
-                        </span>
-                        
-                        <span
-                          className={`px-3 py-1 rounded-lg text-xs font-bold border ${
-                            item.status === "pending"
-                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                          }`}
-                        >
-                          {item.status.toUpperCase()}
-                        </span>
-                        <span className="text-xs text-slate-500 font-mono">
-                          ID: {item.id}
-                        </span>
-                      </div>
-                      <h4 className="text-lg font-black text-white mt-2">
-                        {item.title}
-                      </h4>
-                    </div>
-                    <div className="text-left md:text-right">
-                      <div className="text-sm font-bold text-white">
-                        {item.senderName}
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        {item.senderRole === "regional_admin" ? "Regional Director" : item.senderRole} • <span className="text-cyan-400 font-bold">{item.region}</span>
-                      </div>
-                      <div className="text-xs text-slate-500 font-mono mt-1">
-                        {new Date(item.timestamp).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-base text-slate-300 leading-relaxed bg-slate-950/20 p-4 rounded-xl border border-white/5">
-                    {item.content}
-                  </p>
-                  {item.status === "pending" && (
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        onClick={() => {
-                          store.updateSuggestionStatus(item.id, "reviewed");
-                          store.addAuditLog(
-                            "Feedback Reviewed",
-                            directorTitle,
-                            "super_admin",
-                            "Portugal",
-                            `Marked suggestion ${item.id} from ${item.senderName} as reviewed`
-                          );
-                        }}
-                        className="bg-emerald-600/10 hover:bg-emerald-600 hover:text-white text-emerald-400 border border-emerald-500/20 hover:border-emerald-600 px-5 py-2.5 rounded-xl text-xs font-bold transition-all hover:scale-103 active:scale-97 cursor-pointer"
-                      >
-                        ✔ Mark as Reviewed
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-20 bg-slate-950/20 border border-slate-800 border-dashed rounded-2xl">
-                <Mail className="w-16 h-16 text-slate-700 mx-auto mb-4 animate-bounce" />
-                <p className="text-slate-400 font-bold text-lg">
-                  The suggestions box is currently empty.
-                </p>
-                <p className="text-slate-500 text-sm mt-1 max-w-md mx-auto leading-relaxed">
-                  When Regional Directors submit suggestions or complaints via their Tickets & Alerts panels, they will populate here in real-time.
-                </p>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1990,6 +2466,14 @@ export default function SuperAdminDashboard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 🧮 NORDBASE PRICING CALCULATOR MODAL */}
+      {showCalculatorModal && (
+        <NordBasePricingCalculator
+          isModal={true}
+          onClose={() => setShowCalculatorModal(false)}
+        />
       )}
     </div>
   );
