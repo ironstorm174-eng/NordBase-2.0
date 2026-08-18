@@ -594,7 +594,8 @@ class AppStore {
     chosenRole: UserRole = 'customer',
     password?: string,
     dashboardNumber?: string,
-    isRegistration?: boolean
+    isRegistration?: boolean,
+    photoUrl?: string
   ): Promise<AuthUser> {
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedPhone = phone.trim();
@@ -602,7 +603,7 @@ class AppStore {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail, phone: normalizedPhone, name, role: chosenRole, password, dashboardNumber, isRegistration })
+        body: JSON.stringify({ email: normalizedEmail, phone: normalizedPhone, name, role: chosenRole, password, dashboardNumber, isRegistration, photoUrl })
       });
       const rawText = await res.text();
       let data: any = null;

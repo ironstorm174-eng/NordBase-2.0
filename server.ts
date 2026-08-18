@@ -1494,7 +1494,8 @@ async function authenticateOrRegisterUser(
   chosenRole?: string,
   password?: string,
   dashboardNumber?: string,
-  isRegistration?: boolean
+  isRegistration?: boolean,
+  photoUrl?: string
 ) {
   const normalizedEmail = email ? email.toLowerCase().trim() : '';
   const normalizedPhone = phone ? phone.trim() : '';
@@ -1545,10 +1546,10 @@ async function authenticateOrRegisterUser(
           const newSuperId = 'user-super-01';
           const insRes = await client.query(
             `INSERT INTO app_users (id, email, phone, name, role, specialist_status, city, region, dashboard_number, photo_url)
-             VALUES ($1, $2, $3, $4, 'super_admin', 'approved', 'Portimão', 'Algarve', '01', '/portimao_tp.jpg')
+             VALUES ($1, $2, $3, $4, 'super_admin', 'approved', 'Portimão', 'Algarve', '01', $5)
              ON CONFLICT (id) DO UPDATE SET email = $2, role = 'super_admin', dashboard_number = '01'
              RETURNING *`,
-            [newSuperId, normalizedEmail, normalizedPhone || '+351 901 000 000', name || 'Oleg (Territorial Partner)']
+            [newSuperId, normalizedEmail, normalizedPhone || '+351 901 000 000', name || 'Oleg (Territorial Partner)', photoUrl || '/portimao_tp.jpg']
           );
           superUserRow = insRes.rows[0];
         }
@@ -1561,7 +1562,7 @@ async function authenticateOrRegisterUser(
           role: 'super_admin',
           specialistStatus: 'approved',
           isNewUser: false,
-          photoUrl: superUserRow.photo_url || '/portimao_tp.jpg',
+          photoUrl: superUserRow.photo_url || photoUrl || '/portimao_tp.jpg',
           city: superUserRow.city || 'Portimão',
           region: superUserRow.region || 'Algarve',
           dashboardNumber: '01',
@@ -1593,6 +1594,10 @@ async function authenticateOrRegisterUser(
           existingRoleUser.name = name;
           await client.query('UPDATE app_users SET name = $1 WHERE id = $2', [name, existingRoleUser.id]);
         }
+        if (photoUrl && !existingRoleUser.photo_url) {
+          existingRoleUser.photo_url = photoUrl;
+          await client.query('UPDATE app_users SET photo_url = $1 WHERE id = $2', [photoUrl, existingRoleUser.id]);
+        }
 
         return {
           id: existingRoleUser.id,
@@ -1602,7 +1607,7 @@ async function authenticateOrRegisterUser(
           role: existingRoleUser.role,
           specialistStatus: existingRoleUser.specialist_status || existingRoleUser.specialistStatus || 'not_requested',
           isNewUser: false,
-          photoUrl: existingRoleUser.photo_url || existingRoleUser.photoUrl || undefined,
+          photoUrl: existingRoleUser.photo_url || existingRoleUser.photoUrl || photoUrl || undefined,
           verificationDocuments: typeof existingRoleUser.verification_documents === 'string' ? JSON.parse(existingRoleUser.verification_documents) : existingRoleUser.verification_documents || [],
           categories: existingRoleUser.categories || [],
           languages: typeof existingRoleUser.languages === 'string' ? JSON.parse(existingRoleUser.languages) : existingRoleUser.languages || [],
@@ -1630,13 +1635,14 @@ async function authenticateOrRegisterUser(
           role: targetRole,
           specialistStatus,
           password: password || null,
+          photoUrl: photoUrl || undefined,
         };
 
         await client.query(
-          `INSERT INTO app_users (id, email, phone, name, role, specialist_status, password) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (id) DO UPDATE SET email = $2, phone = $3, name = $4, role = $5, specialist_status = $6`,
-          [newUser.id, newUser.email, newUser.phone, newUser.name, newUser.role, newUser.specialistStatus, newUser.password]
+          `INSERT INTO app_users (id, email, phone, name, role, specialist_status, password, photo_url) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (id) DO UPDATE SET email = $2, phone = $3, name = $4, role = $5, specialist_status = $6, photo_url = COALESCE(app_users.photo_url, $8)`,
+          [newUser.id, newUser.email, newUser.phone, newUser.name, newUser.role, newUser.specialistStatus, newUser.password, photoUrl || null]
         );
 
         if (targetRole === 'specialist') {
@@ -1656,7 +1662,7 @@ async function authenticateOrRegisterUser(
           role: newUser.role,
           specialistStatus: newUser.specialistStatus,
           isNewUser: true,
-          photoUrl: undefined,
+          photoUrl: photoUrl || undefined,
           verificationDocuments: [],
           categories: [],
           languages: [],
@@ -1682,7 +1688,7 @@ async function authenticateOrRegisterUser(
         name: name || 'Oleg (Territorial Partner)',
         role: 'super_admin',
         dashboardNumber: '01',
-        photoUrl: '/portimao_tp.jpg',
+        photoUrl: photoUrl || '/portimao_tp.jpg',
         city: 'Portimão',
         region: 'Algarve'
       };
@@ -1710,6 +1716,7 @@ async function authenticateOrRegisterUser(
     }
     return {
       ...existingRoleUser,
+      photoUrl: existingRoleUser.photoUrl || photoUrl,
       isNewUser: false
     };
   }
@@ -1725,6 +1732,7 @@ async function authenticateOrRegisterUser(
     name: name || (normalizedEmail && normalizedEmail.includes('@') ? normalizedEmail.split('@')[0] : 'User'),
     role: targetRole,
     password: password || undefined,
+    photoUrl: photoUrl || undefined,
     specialistStatus: targetRole === 'specialist' ? 'approved' : 'not_requested',
   };
   inMemoryUsers.push(newUser);
@@ -1761,7 +1769,7 @@ const failedAttempts = new Map<string, { count: number, lastAttempt: number }>()
 
 app.post('/api/auth', async (req, res) => {
   try {
-    const { email, phone, name, role, password, dashboardNumber, isRegistration } = req.body;
+    const { email, phone, name, role, password, dashboardNumber, isRegistration, photoUrl } = req.body;
     const identifier = (email || phone || '').toLowerCase().trim();
     
     // Check rate limit delay
@@ -1774,7 +1782,7 @@ app.post('/api/auth', async (req, res) => {
       }
     }
 
-    const userData = await authenticateOrRegisterUser(email, phone, name, role, password, dashboardNumber, isRegistration);
+    const userData = await authenticateOrRegisterUser(email, phone, name, role, password, dashboardNumber, isRegistration, photoUrl);
     
     if (userData.error) {
       // Increment failed attempt

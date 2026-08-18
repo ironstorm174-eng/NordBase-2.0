@@ -1125,13 +1125,11 @@ export default function App() {
             <div className="overflow-y-auto max-h-full pr-0.5 custom-scrollbar">
               <LoginScreen
                 expectedRole={expectedLoginRole}
-                onLoginSuccess={async (email, phone, name, role, password, isRegistration, dashboardNumber) => {
-                  const user = await store.authenticate(email, phone, name, role, password, dashboardNumber, isRegistration);
-                  if (!user.isNewUser) {
-                    setShowLoginModal(false);
-                    handleRoleChange(user.role || role);
-                    setIsPartnerPage(false);
-                  }
+                onLoginSuccess={async (email, phone, name, role, password, isRegistration, dashboardNumber, photoUrl) => {
+                  const user = await store.authenticate(email, phone, name, role, password, dashboardNumber, isRegistration, photoUrl);
+                  setShowLoginModal(false);
+                  handleRoleChange(user.role || role);
+                  setIsPartnerPage(false);
                   return user;
                 }}
                 onOnboardUser={(userId, role, name, phone, city, category) => {
