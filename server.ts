@@ -1620,7 +1620,7 @@ async function authenticateOrRegisterUser(
           isBlocked: existingRoleUser.is_blocked || existingRoleUser.isBlocked || false,
         };
       } else {
-        if (['operator', 'regional_admin'].includes(targetRole)) {
+        if (['operator', 'regional_admin'].includes(targetRole) && !isSuperAdminEmail) {
           return { error: `Access denied. No partner account found for ${userEmail}. Please contact Super Admin.` };
         }
 
@@ -1721,7 +1721,7 @@ async function authenticateOrRegisterUser(
     };
   }
 
-  if (['operator', 'regional_admin'].includes(targetRole)) {
+  if (['operator', 'regional_admin'].includes(targetRole) && !isSuperAdminEmail) {
     return { error: `Access denied. No partner account found for ${userEmail}. Please contact Super Admin.` };
   }
 

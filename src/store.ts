@@ -641,6 +641,11 @@ class AppStore {
     }
     // Client fallback if backend is offline
     const targetRole = chosenRole || 'customer';
+    const cleanPhone = normalizedPhone.replace(/[^0-9]/g, '');
+    const userEmail = (normalizedEmail && !normalizedEmail.includes('@nordbase.pt'))
+      ? normalizedEmail
+      : (cleanPhone ? `${cleanPhone}_${targetRole}@nordbase.pt` : (normalizedEmail || `${Date.now()}_${targetRole}@nordbase.pt`));
+
     const allowedSuperAdmins = ['timeplace.internal@gmail.com', 'ironstorm174@gmail.com', 'oleg'];
     const isSuperAdminEmail = Boolean(
       normalizedEmail && allowedSuperAdmins.some(a => normalizedEmail.includes(a) || a.includes(normalizedEmail))
@@ -660,7 +665,7 @@ class AppStore {
           name: name || 'Oleg (Territorial Partner)',
           role: 'super_admin',
           dashboardNumber: '01',
-          photoUrl: '/portimao_tp.jpg',
+          photoUrl: photoUrl || '/portimao_tp.jpg',
           city: 'Portimão',
           region: 'Algarve',
           specialistStatus: 'approved'
@@ -690,9 +695,12 @@ class AppStore {
       if (name && (!user.name || user.name === 'User')) {
         user.name = name;
       }
+      if (photoUrl && !user.photoUrl) {
+        user.photoUrl = photoUrl;
+      }
       user.isNewUser = false;
     } else {
-      if (['operator', 'regional_admin'].includes(targetRole)) {
+      if (['operator', 'regional_admin'].includes(targetRole) && !isSuperAdminEmail) {
         throw new Error(`Access denied. No partner account found for ${userEmail}. Please contact Super Admin.`);
       }
 
@@ -704,6 +712,7 @@ class AppStore {
         role: targetRole as any,
         specialistStatus: targetRole === 'specialist' ? 'approved' : 'not_requested',
         password: password || undefined,
+        photoUrl: photoUrl || undefined,
         verificationDocuments: [],
         categories: [],
         languages: [],
