@@ -423,35 +423,37 @@ export default function App() {
     );
 
     if (isOperatorRoute) {
-      const isOperator = currentUser && currentUser.role === 'operator';
+      const isOperator = currentUser && (currentUser.role === 'operator' || currentUser.role === 'super_admin' || isSuperUserEmail);
       const matchingPartnerUser = currentUser && allUsers.find(u => 
-        (u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) && 
-        u.role === 'operator'
+        (u.email && currentUser.email && u.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) && 
+        (u.role === 'operator' || u.role === 'super_admin')
       );
 
       if (isOperator) {
         if (state.currentRole !== 'operator') handleRoleChange('operator');
       } else if (matchingPartnerUser) {
-        store.authenticate(matchingPartnerUser);
+        store.setCurrentUser(matchingPartnerUser);
         handleRoleChange('operator');
       } else {
+        if (state.currentRole !== 'operator') handleRoleChange('operator');
         setExpectedLoginRole('operator');
         expectedRoleForLogin = 'operator';
         routeNeedsLogin = true;
       }
     } else if (isAdminRoute) {
-      const isRegional = currentUser && currentUser.role === 'regional_admin';
+      const isRegional = currentUser && (currentUser.role === 'regional_admin' || currentUser.role === 'super_admin' || isSuperUserEmail);
       const matchingPartnerUser = currentUser && allUsers.find(u => 
-        (u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) && 
-        u.role === 'regional_admin'
+        (u.email && currentUser.email && u.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) && 
+        (u.role === 'regional_admin' || u.role === 'super_admin')
       );
 
       if (isRegional) {
         if (state.currentRole !== 'regional_admin') handleRoleChange('regional_admin');
       } else if (matchingPartnerUser) {
-        store.authenticate(matchingPartnerUser);
+        store.setCurrentUser(matchingPartnerUser);
         handleRoleChange('regional_admin');
       } else {
+        if (state.currentRole !== 'regional_admin') handleRoleChange('regional_admin');
         setExpectedLoginRole('regional_admin');
         expectedRoleForLogin = 'regional_admin';
         routeNeedsLogin = true;
@@ -459,14 +461,14 @@ export default function App() {
     } else if (isSuperAdminRoute) {
       const isSuper = currentUser && currentUser.role === 'super_admin';
       const matchingSuperUser = currentUser && allUsers.find(u => 
-        (u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) && 
+        (u.email && currentUser.email && u.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) && 
         u.role === 'super_admin'
       );
 
       if (isSuper) {
         if (state.currentRole !== 'super_admin') handleRoleChange('super_admin');
       } else if (matchingSuperUser) {
-        store.authenticate(matchingSuperUser);
+        store.setCurrentUser(matchingSuperUser);
         handleRoleChange('super_admin');
       } else if (isSuperUserEmail && currentUser) {
         // Authenticate authorized super admin specifically on this route
@@ -476,9 +478,10 @@ export default function App() {
           dashboardNumber: '01',
           specialistStatus: 'approved'
         };
-        store.authenticate(elevatedUser);
+        store.setCurrentUser(elevatedUser);
         handleRoleChange('super_admin');
       } else {
+        if (state.currentRole !== 'super_admin') handleRoleChange('super_admin');
         setExpectedLoginRole('super_admin');
         expectedRoleForLogin = 'super_admin';
         routeNeedsLogin = true;
@@ -487,6 +490,7 @@ export default function App() {
       if (currentUser && currentUser.role === 'specialist') {
         if (state.currentRole !== 'specialist') handleRoleChange('specialist');
       } else {
+        if (state.currentRole !== 'specialist') handleRoleChange('specialist');
         setExpectedLoginRole('specialist');
         expectedRoleForLogin = 'specialist';
         routeNeedsLogin = true;
@@ -514,7 +518,7 @@ export default function App() {
         handleRoleChange(currentUser.role);
       }
     }
-    if (routeNeedsLogin && !currentUser) {
+    if (routeNeedsLogin && (!currentUser || (expectedRoleForLogin && currentUser.role !== expectedRoleForLogin))) {
       setShowLoginModal(true);
     }
   }, [location.pathname, location.hash, location.search]);
@@ -726,6 +730,26 @@ export default function App() {
                   >
                     <Headphones className="w-3.5 h-3.5 shrink-0" />
                     <span>{t('app.opsPortal')}</span>
+                  </button>
+                )}
+                {state.currentUser.role === 'regional_admin' && (
+                  <button
+                    onClick={() => handleRoleChange('regional_admin')}
+                    className="px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold bg-indigo-500 text-white border border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:bg-indigo-400 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+                    title="RP Portal"
+                  >
+                    <Shield className="w-3.5 h-3.5 shrink-0" />
+                    <span>RP Portal</span>
+                  </button>
+                )}
+                {state.currentUser.role === 'super_admin' && (
+                  <button
+                    onClick={() => handleRoleChange('super_admin')}
+                    className="px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold bg-amber-500 text-slate-950 border border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:bg-amber-400 transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+                    title="Super Admin"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                    <span>HQ SuperAdmin</span>
                   </button>
                 )}
                 <button

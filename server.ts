@@ -1664,6 +1664,23 @@ async function authenticateOrRegisterUser(
           return { error: 'Access denied. Your account is blocked. Please contact support.' };
         }
 
+        // Strict role validation: Prevent unauthorized access to RP and TP portals
+        if (targetRole === 'regional_admin' && existingRoleUser.role !== 'regional_admin' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+          return { 
+            error: `Acesso negado: O email ${normalizedEmail || userEmail} não está registado como Parceiro Regional (RP) no painel do Super Admin. Apenas Parceiros Regionais autorizados têm acesso a este portal.` 
+          };
+        }
+
+        if (targetRole === 'operator' && existingRoleUser.role !== 'operator' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+          return { 
+            error: `Acesso negado: O email ${normalizedEmail || userEmail} não está registado como Parceiro Territorial (TP) no painel do Super Admin. Apenas Parceiros Territoriais autorizados têm acesso a este terminal.` 
+          };
+        }
+
+        if (targetRole === 'super_admin' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+          return { error: 'Access denied. You are not authorized as Super Admin.' };
+        }
+
         if ((!existingRoleUser.name || existingRoleUser.name === 'User') && name) {
           existingRoleUser.name = name;
           await client.query('UPDATE app_users SET name = $1 WHERE id = $2', [name, existingRoleUser.id]);
@@ -1695,7 +1712,7 @@ async function authenticateOrRegisterUser(
         };
       } else {
         if (['operator', 'regional_admin'].includes(targetRole) && !isSuperAdminEmail) {
-          return { error: `Access denied. No partner account found for ${userEmail}. Please contact Super Admin.` };
+          return { error: `Acesso negado: Nenhuma conta de Parceiro encontrada para ${userEmail}. Contacte o Super Admin.` };
         }
 
         const specialistStatus = targetRole === 'specialist' ? 'approved' : 'not_requested';
@@ -1783,6 +1800,23 @@ async function authenticateOrRegisterUser(
     if (existingRoleUser.isBlocked) {
       return { error: 'Access denied. Your account is blocked. Please contact support.' };
     }
+
+    if (targetRole === 'regional_admin' && existingRoleUser.role !== 'regional_admin' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+      return { 
+        error: `Acesso negado: O email ${normalizedEmail || userEmail} não está registado como Parceiro Regional (RP) no painel do Super Admin. Apenas Parceiros Regionais autorizados têm acesso a este portal.` 
+      };
+    }
+
+    if (targetRole === 'operator' && existingRoleUser.role !== 'operator' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+      return { 
+        error: `Acesso negado: O email ${normalizedEmail || userEmail} não está registado como Parceiro Territorial (TP) no painel do Super Admin. Apenas Parceiros Territoriais autorizados têm acesso a este terminal.` 
+      };
+    }
+
+    if (targetRole === 'super_admin' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+      return { error: 'Access denied. You are not authorized as Super Admin.' };
+    }
+
     return {
       ...existingRoleUser,
       photoUrl: existingRoleUser.photoUrl || photoUrl,
@@ -1791,7 +1825,7 @@ async function authenticateOrRegisterUser(
   }
 
   if (['operator', 'regional_admin'].includes(targetRole) && !isSuperAdminEmail) {
-    return { error: `Access denied. No partner account found for ${userEmail}. Please contact Super Admin.` };
+    return { error: `Acesso negado: Nenhuma conta de Parceiro encontrada para ${userEmail}. Contacte o Super Admin.` };
   }
 
   const newUser = {
@@ -2076,15 +2110,22 @@ app.post('/api/users/update', verifyAuthToken, async (req, res) => {
         try {
           for (const u of cleanUsers) {
             try {
-              // Check if user exists
-              const res = await client.query('SELECT id FROM app_users WHERE id = $1', [u.id]);
+              // Check if user exists by id or email
+              const res = await client.query(
+                `SELECT id FROM app_users 
+                 WHERE id = $1 
+                    OR (LOWER(TRIM(email)) = LOWER(TRIM($2)) AND email <> '')
+                 LIMIT 1`, 
+                [u.id, u.email || '']
+              );
               if (res.rows.length > 0) {
                 // Update
+                const existingDbId = res.rows[0].id;
                 await client.query(
                   `UPDATE app_users 
-                   SET is_blocked = $1, dashboard_number = $2, name = $3, phone = $4, email = $5, role = $6, password = $7, region = $8
-                   WHERE id = $9`,
-                  [u.isBlocked || false, u.dashboardNumber || null, u.name || '', u.phone || '', u.email || '', u.role || 'customer', u.password || null, u.region || null, u.id]
+                   SET is_blocked = $1, dashboard_number = $2, name = $3, phone = $4, email = $5, role = $6, password = $7, region = $8, specialist_status = $9
+                   WHERE id = $10`,
+                  [u.isBlocked || false, u.dashboardNumber || null, u.name || '', u.phone || '', u.email || '', u.role || 'customer', u.password || null, u.region || null, u.specialistStatus || 'not_requested', existingDbId]
                 );
               } else {
                 // Insert

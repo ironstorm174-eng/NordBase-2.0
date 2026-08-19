@@ -760,6 +760,12 @@ class AppStore {
       if (existingRoleUser.isBlocked) {
         throw new Error('Access denied. Your account is blocked. Please contact support.');
       }
+      if (targetRole === 'regional_admin' && existingRoleUser.role !== 'regional_admin' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+        throw new Error(`Acesso negado: O email ${normalizedEmail || userEmail} não está registado como Parceiro Regional (RP). Apenas Parceiros Regionais autorizados têm acesso a este portal.`);
+      }
+      if (targetRole === 'operator' && existingRoleUser.role !== 'operator' && existingRoleUser.role !== 'super_admin' && !isSuperAdminEmail) {
+        throw new Error(`Acesso negado: O email ${normalizedEmail || userEmail} não está registado como Parceiro Territorial (TP). Apenas Parceiros Territoriais autorizados têm acesso a este terminal.`);
+      }
       user = existingRoleUser;
       if (name && (!user.name || user.name === 'User')) {
         user.name = name;
@@ -770,7 +776,7 @@ class AppStore {
       user.isNewUser = false;
     } else {
       if (['operator', 'regional_admin'].includes(targetRole) && !isSuperAdminEmail) {
-        throw new Error(`Access denied. No partner account found for ${userEmail}. Please contact Super Admin.`);
+        throw new Error(`Acesso negado: Nenhuma conta de Parceiro encontrada para ${userEmail}. Contacte o Super Admin.`);
       }
 
       user = {
@@ -942,6 +948,21 @@ class AppStore {
       });
     } catch (e) {
       console.error('Failed to submit user photo update to backend:', e);
+    }
+  }
+  public async updateUsers(users: AuthUser[]) {
+    this.state.users = users;
+    this.saveState();
+    this.notify();
+    try {
+      await fetch('/api/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ users }),
+      });
+      await this.syncFromServer();
+    } catch (e) {
+      console.error('Failed to sync updated users to backend:', e);
     }
   }
   public navigate(path: string) {

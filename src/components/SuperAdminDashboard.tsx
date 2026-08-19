@@ -52,6 +52,15 @@ import {
   AlertCircle,
   RefreshCw,
   Calculator,
+  UserPlus,
+  Trash2,
+  Copy,
+  ExternalLink,
+  Briefcase,
+  Wallet,
+  Award,
+  FileText,
+  CheckCircle,
 } from "lucide-react";
 import { PORTUGAL_GEO } from "../lib/geo";
 import { store } from "../store";
@@ -266,27 +275,51 @@ export default function SuperAdminDashboard({
         finalDashNum = "05"; // fallback
       }
     }
-    const newUser: AuthUser = {
-      id: `u_${Date.now()}`,
-      email: newPartnerEmail.trim().toLowerCase(),
-      name: `${newPartnerFirstName} ${newPartnerLastName}`.trim(),
-      phone: newPartnerPhone,
-      whatsapp: newPartnerWhatsapp,
-      telegram: newPartnerTelegram,
-      region: newPartnerRole === 'super_admin' ? 'All' : (newPartnerRegion === 'All' ? PORTUGAL_GEO[0]?.name || '' : newPartnerRegion),
-      role: newPartnerRole,
-      dashboardNumber: finalDashNum,
+    const cleanEmail = newPartnerEmail.trim().toLowerCase();
+    const existingIndex = users.findIndex(u => u.email && u.email.trim().toLowerCase() === cleanEmail);
+    let updated: AuthUser[];
+
+    if (existingIndex !== -1) {
+      updated = users.map((u, idx) => {
+        if (idx === existingIndex) {
+          return {
+            ...u,
+            name: `${newPartnerFirstName} ${newPartnerLastName}`.trim() || u.name,
+            phone: newPartnerPhone || u.phone,
+            whatsapp: newPartnerWhatsapp || u.whatsapp,
+            telegram: newPartnerTelegram || u.telegram,
+            region: newPartnerRole === 'super_admin' ? 'All' : (newPartnerRegion === 'All' ? PORTUGAL_GEO[0]?.name || '' : newPartnerRegion),
+            role: newPartnerRole,
+            dashboardNumber: finalDashNum || u.dashboardNumber,
             isNewUser: false,
-      specialistStatus: "approved",
-    };
-    const updated = [...users, newUser];
+            specialistStatus: "approved",
+          };
+        }
+        return u;
+      });
+    } else {
+      const newUser: AuthUser = {
+        id: `u_${Date.now()}`,
+        email: cleanEmail,
+        name: `${newPartnerFirstName} ${newPartnerLastName}`.trim(),
+        phone: newPartnerPhone,
+        whatsapp: newPartnerWhatsapp,
+        telegram: newPartnerTelegram,
+        region: newPartnerRole === 'super_admin' ? 'All' : (newPartnerRegion === 'All' ? PORTUGAL_GEO[0]?.name || '' : newPartnerRegion),
+        role: newPartnerRole,
+        dashboardNumber: finalDashNum,
+        isNewUser: false,
+        specialistStatus: "approved",
+      };
+      updated = [...users, newUser];
+    }
     onUpdateUsers(updated);
     onAddAuditLog(
-      "Partner Added",
+      "Partner Added / Updated",
       directorTitle,
       "super_admin",
       "All",
-      `Added ${newPartnerRole} ${newPartnerEmail}`,
+      `Provisioned ${newPartnerRole} for ${cleanEmail} (${finalDashNum})`,
     );
     // Reset fields
     setNewPartnerFirstName("");
@@ -336,6 +369,180 @@ export default function SuperAdminDashboard({
       "All",
       `Assigned dashboard ${newDash} to ${name}`
     );
+  };
+
+  // --- ALL USERS MASTER REGISTRY & DIRECTORY ---
+  const [allUsersSearch, setAllUsersSearch] = useState("");
+  const [allUsersRoleFilter, setAllUsersRoleFilter] = useState<string>("all");
+  const [allUsersStatusFilter, setAllUsersStatusFilter] = useState<string>("all");
+  const [allUsersRegionFilter, setAllUsersRegionFilter] = useState<string>("all");
+  const [allUsersSortBy, setAllUsersSortBy] = useState<"newest" | "name" | "role">("newest");
+  const [isSyncingUsers, setIsSyncingUsers] = useState(false);
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
+
+  const [selectedUserForInspection, setSelectedUserForInspection] = useState<AuthUser | null>(null);
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [userModalMode, setUserModalMode] = useState<"create" | "edit">("create");
+  const [userForm, setUserForm] = useState<{
+    id?: string;
+    name: string;
+    email: string;
+    phone: string;
+    role: any;
+    region: string;
+    city: string;
+    dashboardNumber: string;
+    specialistStatus: any;
+    category: string;
+    tradeSkillLevel: string;
+    skillsDescription: string;
+    isBlocked: boolean;
+  }>({
+    name: "",
+    email: "",
+    phone: "",
+    role: "specialist",
+    region: "All",
+    city: "Portimão",
+    dashboardNumber: "",
+    specialistStatus: "approved",
+    category: "Home Services",
+    tradeSkillLevel: "Expert",
+    skillsDescription: "",
+    isBlocked: false,
+  });
+
+  const handleOpenCreateUser = () => {
+    setUserModalMode("create");
+    setUserForm({
+      name: "",
+      email: "",
+      phone: "",
+      role: "specialist",
+      region: "All",
+      city: "Portimão",
+      dashboardNumber: "",
+      specialistStatus: "approved",
+      category: "Home Services",
+      tradeSkillLevel: "Expert",
+      skillsDescription: "",
+      isBlocked: false,
+    });
+    setUserModalOpen(true);
+  };
+
+  const handleOpenEditUser = (u: AuthUser) => {
+    setUserModalMode("edit");
+    setUserForm({
+      id: u.id,
+      name: u.name || "",
+      email: u.email || "",
+      phone: u.phone || "",
+      role: u.role || "customer",
+      region: u.region || "All",
+      city: u.city || "",
+      dashboardNumber: u.dashboardNumber || "",
+      specialistStatus: u.specialistStatus || (u.role === "specialist" ? "approved" : "not_requested"),
+      category: u.category || (u.role === "specialist" ? "Home Services" : ""),
+      tradeSkillLevel: (u as any).tradeSkillLevel || "Expert",
+      skillsDescription: (u as any).skillsDescription || "",
+      isBlocked: !!u.isBlocked,
+    });
+    setUserModalOpen(true);
+  };
+
+  const handleSaveUserForm = async () => {
+    if (!userForm.name.trim() && !userForm.email.trim()) {
+      setLocalAlert({ type: "error", text: "Укажите имя или email пользователя" });
+      setTimeout(() => setLocalAlert(null), 4000);
+      return;
+    }
+
+    const cleanEmail = (userForm.email || "").trim().toLowerCase();
+    let updatedUsers: AuthUser[];
+
+    if (userModalMode === "edit" && userForm.id) {
+      updatedUsers = users.map((u) => {
+        if (u.id === userForm.id) {
+          return {
+            ...u,
+            name: userForm.name.trim() || u.name,
+            email: cleanEmail || u.email,
+            phone: userForm.phone.trim(),
+            role: userForm.role,
+            region: userForm.role === "super_admin" ? "All" : (userForm.region || "All"),
+            city: userForm.city.trim(),
+            dashboardNumber: userForm.dashboardNumber.trim() || undefined,
+            specialistStatus: userForm.specialistStatus,
+            category: userForm.category || undefined,
+            tradeSkillLevel: userForm.tradeSkillLevel as any,
+            skillsDescription: userForm.skillsDescription,
+            isBlocked: userForm.isBlocked,
+          };
+        }
+        return u;
+      });
+      onAddAuditLog(
+        "User Profile Updated",
+        directorTitle,
+        "super_admin",
+        userForm.region || "All",
+        `SuperAdmin updated profile for ${userForm.name} (${userForm.role}, ${cleanEmail || userForm.id})`
+      );
+    } else {
+      const newId = `user-${userForm.role}-${Date.now()}`;
+      const newUser: AuthUser = {
+        id: newId,
+        name: userForm.name.trim() || "User",
+        email: cleanEmail || `${newId}@nordbase.pt`,
+        phone: userForm.phone.trim(),
+        role: userForm.role,
+        region: userForm.role === "super_admin" ? "All" : (userForm.region || "All"),
+        city: userForm.city.trim() || "Portimão",
+        dashboardNumber: userForm.dashboardNumber.trim() || undefined,
+        specialistStatus: userForm.specialistStatus,
+        category: userForm.category || (userForm.role === "specialist" ? "Home Services" : undefined),
+        tradeSkillLevel: userForm.tradeSkillLevel as any,
+        skillsDescription: userForm.skillsDescription,
+        isBlocked: userForm.isBlocked,
+        isNewUser: false,
+      };
+      updatedUsers = [newUser, ...users];
+      onAddAuditLog(
+        "User Account Created",
+        directorTitle,
+        "super_admin",
+        userForm.region || "All",
+        `SuperAdmin manually created account ${newUser.name} (${newUser.role}, ${newUser.email})`
+      );
+    }
+
+    onUpdateUsers(updatedUsers);
+    setUserModalOpen(false);
+    setLocalAlert({
+      type: "success",
+      text: userModalMode === "edit" ? "Профиль пользователя успешно обновлен!" : "Новый пользователь успешно создан!",
+    });
+    setTimeout(() => setLocalAlert(null), 4000);
+  };
+
+  const handleSyncUsersNow = async () => {
+    setIsSyncingUsers(true);
+    try {
+      await store.syncFromServer();
+      setLocalAlert({ type: "success", text: "Синхронизация с базой данных PostgreSQL успешно завершена!" });
+    } catch (e) {
+      setLocalAlert({ type: "error", text: "Ошибка синхронизации с базой данных." });
+    } finally {
+      setIsSyncingUsers(false);
+      setTimeout(() => setLocalAlert(null), 4000);
+    }
+  };
+
+  const handleCopyText = (text: string, id: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopiedUserId(id);
+    setTimeout(() => setCopiedUserId(null), 2000);
   };
   // --- CHAT / INBOX (for Dashboard specific id) ---
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null);
@@ -1580,6 +1787,645 @@ export default function SuperAdminDashboard({
           </div>
         </div>
       )}
+
+      {/* VIEW 2C: ALL REGISTERED ACCOUNTS & PROFILES MASTER CONTROL CENTER */}
+      {activeTab === "all_users" && (() => {
+        // Filter users based on search, role, status, region
+        const filteredList = users.filter((u) => {
+          if (allUsersRoleFilter !== "all" && u.role !== allUsersRoleFilter) return false;
+          if (allUsersStatusFilter === "active" && u.isBlocked) return false;
+          if (allUsersStatusFilter === "blocked" && !u.isBlocked) return false;
+          if (allUsersStatusFilter === "pending" && u.specialistStatus !== "pending_review") return false;
+          if (allUsersStatusFilter === "approved" && u.specialistStatus !== "approved") return false;
+          if (allUsersRegionFilter !== "all") {
+            const matchRegion = (u.region || "").toLowerCase().includes(allUsersRegionFilter.toLowerCase());
+            const matchCity = (u.city || "").toLowerCase().includes(allUsersRegionFilter.toLowerCase());
+            if (!matchRegion && !matchCity) return false;
+          }
+          if (allUsersSearch.trim()) {
+            const q = allUsersSearch.toLowerCase().trim();
+            const match =
+              (u.name || "").toLowerCase().includes(q) ||
+              (u.email || "").toLowerCase().includes(q) ||
+              (u.phone || "").toLowerCase().includes(q) ||
+              (u.id || "").toLowerCase().includes(q) ||
+              (u.city || "").toLowerCase().includes(q) ||
+              (u.region || "").toLowerCase().includes(q) ||
+              (u.dashboardNumber || "").toLowerCase().includes(q);
+            if (!match) return false;
+          }
+          return true;
+        });
+
+        // Sort users
+        const sortedList = [...filteredList].sort((a, b) => {
+          if (allUsersSortBy === "name") {
+            return (a.name || "").localeCompare(b.name || "");
+          }
+          if (allUsersSortBy === "role") {
+            return (a.role || "").localeCompare(b.role || "");
+          }
+          // Default: newest first by id or timestamp
+          return (b.id || "").localeCompare(a.id || "");
+        });
+
+        const superAdminCount = users.filter(u => u.role === "super_admin").length;
+        const rdCount = users.filter(u => u.role === "regional_admin").length;
+        const tpCount = users.filter(u => u.role === "operator").length;
+        const specCount = users.filter(u => u.role === "specialist").length;
+        const custCount = users.filter(u => u.role === "customer").length;
+        const coordCount = users.filter(u => u.role === "coordinator").length;
+        const blockedCount = users.filter(u => u.isBlocked).length;
+
+        return (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Header & Quick Action Bar */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold rounded-full flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>HQ MASTER ACCOUNTS REGISTRY</span>
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">Total: {users.length} accounts</span>
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-display font-black text-white tracking-tight">
+                    👤 Главный Реестр и Управление Всеми Аккаунтами
+                  </h3>
+                  <p className="text-slate-400 text-sm mt-1.5 max-w-3xl leading-relaxed">
+                    Централизованный аудит всех зарегистрированных учетных записей NordBase в Португалии: Супер Администраторы, Региональные и Территориальные Партнеры, Специалисты и Заказчики.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                  <button
+                    onClick={handleSyncUsersNow}
+                    disabled={isSyncingUsers}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50"
+                    title="Синхронизировать данные пользователей с PostgreSQL базой"
+                  >
+                    <RefreshCw className={`w-4 h-4 text-cyan-400 ${isSyncingUsers ? "animate-spin" : ""}`} />
+                    <span>{isSyncingUsers ? "Синхронизация..." : "Синхронизировать с БД"}</span>
+                  </button>
+
+                  <button
+                    onClick={handleOpenCreateUser}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-2xl text-xs font-bold transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Создать Пользователя</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Statistics Metrics Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-6 pt-6 border-t border-slate-800/80">
+                <div 
+                  onClick={() => setAllUsersRoleFilter("all")}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    allUsersRoleFilter === "all"
+                      ? "bg-slate-800 border-cyan-500/50 shadow-md ring-1 ring-cyan-500/30"
+                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Всего</div>
+                  <div className="text-xl font-black text-white font-mono mt-0.5">{users.length}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Вся база</div>
+                </div>
+
+                <div 
+                  onClick={() => setAllUsersRoleFilter("super_admin")}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    allUsersRoleFilter === "super_admin"
+                      ? "bg-amber-950/40 border-amber-500/50 shadow-md ring-1 ring-amber-500/30"
+                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    <span>HQ Super</span>
+                  </div>
+                  <div className="text-xl font-black text-amber-400 font-mono mt-0.5">{superAdminCount}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Суперадмины</div>
+                </div>
+
+                <div 
+                  onClick={() => setAllUsersRoleFilter("regional_admin")}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    allUsersRoleFilter === "regional_admin"
+                      ? "bg-purple-950/40 border-purple-500/50 shadow-md ring-1 ring-purple-500/30"
+                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    <span>RD Партнеры</span>
+                  </div>
+                  <div className="text-xl font-black text-purple-400 font-mono mt-0.5">{rdCount}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Региональные</div>
+                </div>
+
+                <div 
+                  onClick={() => setAllUsersRoleFilter("operator")}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    allUsersRoleFilter === "operator"
+                      ? "bg-cyan-950/40 border-cyan-500/50 shadow-md ring-1 ring-cyan-500/30"
+                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    <span>TP Партнеры</span>
+                  </div>
+                  <div className="text-xl font-black text-cyan-400 font-mono mt-0.5">{tpCount}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Территориальные</div>
+                </div>
+
+                <div 
+                  onClick={() => setAllUsersRoleFilter("specialist")}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    allUsersRoleFilter === "specialist"
+                      ? "bg-emerald-950/40 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30"
+                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                    <UserCheck className="w-3 h-3" />
+                    <span>Специалисты</span>
+                  </div>
+                  <div className="text-xl font-black text-emerald-400 font-mono mt-0.5">{specCount}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Мастера и Про</div>
+                </div>
+
+                <div 
+                  onClick={() => setAllUsersRoleFilter("customer")}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    allUsersRoleFilter === "customer"
+                      ? "bg-blue-950/40 border-blue-500/50 shadow-md ring-1 ring-blue-500/30"
+                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    <span>Заказчики</span>
+                  </div>
+                  <div className="text-xl font-black text-blue-400 font-mono mt-0.5">{custCount}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Клиенты системы</div>
+                </div>
+
+                <div 
+                  onClick={() => setAllUsersStatusFilter(allUsersStatusFilter === "blocked" ? "all" : "blocked")}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                    allUsersStatusFilter === "blocked"
+                      ? "bg-rose-950/40 border-rose-500/50 shadow-md ring-1 ring-rose-500/30"
+                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    <span>Заморожено</span>
+                  </div>
+                  <div className="text-xl font-black text-rose-400 font-mono mt-0.5">{blockedCount}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Блокировка</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Search Toolbar */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-lg space-y-4">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={allUsersSearch}
+                    onChange={(e) => setAllUsersSearch(e.target.value)}
+                    placeholder="Поиск по имени, email, телефону, ID, городу, номеру пульта..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-12 pr-10 py-3 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors placeholder:text-slate-600"
+                  />
+                  {allUsersSearch && (
+                    <button
+                      onClick={() => setAllUsersSearch("")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filters Dropdowns */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Status filter */}
+                  <select
+                    value={allUsersStatusFilter}
+                    onChange={(e) => setAllUsersStatusFilter(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-400 cursor-pointer"
+                  >
+                    <option value="all">Все статусы</option>
+                    <option value="active">🟢 Только активные</option>
+                    <option value="pending">🟡 Ожидают верификации</option>
+                    <option value="approved">✅ Верифицированные</option>
+                    <option value="blocked">🔴 Замороженные / Блок</option>
+                  </select>
+
+                  {/* Region filter */}
+                  <select
+                    value={allUsersRegionFilter}
+                    onChange={(e) => setAllUsersRegionFilter(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-400 cursor-pointer"
+                  >
+                    <option value="all">Все регионы Португалии</option>
+                    {PORTUGAL_GEO.map((g) => (
+                      <option key={g.id} value={g.name}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Sort filter */}
+                  <select
+                    value={allUsersSortBy}
+                    onChange={(e) => setAllUsersSortBy(e.target.value as any)}
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-400 cursor-pointer"
+                  >
+                    <option value="newest">Сначала новые</option>
+                    <option value="name">По имени (А-Я)</option>
+                    <option value="role">По роли</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Role filter quick pills */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/60">
+                <span className="text-xs text-slate-400 font-medium mr-1 flex items-center gap-1">
+                  <Filter className="w-3 h-3" />
+                  <span>Роль:</span>
+                </span>
+                {[
+                  { id: "all", label: `Все (${users.length})` },
+                  { id: "super_admin", label: `👑 SuperAdmin (${superAdminCount})` },
+                  { id: "regional_admin", label: `🌐 Regional RD (${rdCount})` },
+                  { id: "operator", label: `📍 Territory TP (${tpCount})` },
+                  { id: "specialist", label: `💼 Специалисты (${specCount})` },
+                  { id: "customer", label: `👥 Заказчики (${custCount})` },
+                  ...(coordCount > 0 ? [{ id: "coordinator", label: `📋 Координаторы (${coordCount})` }] : []),
+                ].map((pill) => (
+                  <button
+                    key={pill.id}
+                    onClick={() => setAllUsersRoleFilter(pill.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      allUsersRoleFilter === pill.id
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                        : "bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800/80 hover:bg-slate-800"
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+
+                {(allUsersRoleFilter !== "all" || allUsersStatusFilter !== "all" || allUsersRegionFilter !== "all" || allUsersSearch) && (
+                  <button
+                    onClick={() => {
+                      setAllUsersRoleFilter("all");
+                      setAllUsersStatusFilter("all");
+                      setAllUsersRegionFilter("all");
+                      setAllUsersSearch("");
+                    }}
+                    className="ml-auto text-xs text-rose-400 hover:text-rose-300 underline font-medium cursor-pointer"
+                  >
+                    Сбросить фильтры
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Results Count & Active View */}
+            <div className="flex items-center justify-between text-xs text-slate-400 px-2 font-mono">
+              <div>
+                Показано <strong className="text-white">{sortedList.length}</strong> из <strong className="text-white">{users.length}</strong> аккаунтов
+              </div>
+            </div>
+
+            {/* Accounts Directory Grid */}
+            {sortedList.length === 0 ? (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center space-y-4">
+                <div className="w-16 h-16 bg-slate-800/80 text-slate-500 rounded-2xl flex items-center justify-center mx-auto">
+                  <UserX className="w-8 h-8" />
+                </div>
+                <h4 className="text-lg font-bold text-white">Аккаунты не найдены</h4>
+                <p className="text-slate-400 text-sm max-w-md mx-auto">
+                  По заданным критериям поиска и фильтрам учетные записи не обнаружены. Попробуйте изменить поисковый запрос или сбросить фильтры.
+                </p>
+                <button
+                  onClick={() => {
+                    setAllUsersRoleFilter("all");
+                    setAllUsersStatusFilter("all");
+                    setAllUsersRegionFilter("all");
+                    setAllUsersSearch("");
+                  }}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Сбросить все фильтры
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {sortedList.map((u) => {
+                  const isCurrentSuper = u.id === "user-super-01" || u.role === "super_admin";
+                  const specProfile = specialists.find(s => s.id === u.id || s.phone === u.phone);
+                  const userOrders = jobs.filter(j => j.customerId === u.id || j.customerPhone === u.phone);
+                  const isBlocked = !!u.isBlocked;
+
+                  let roleBadgeColor = "bg-blue-500/10 text-blue-300 border-blue-500/30";
+                  let roleTitle = "Заказчик / Клиент";
+                  let roleIcon = Users;
+
+                  if (u.role === "super_admin") {
+                    roleBadgeColor = "bg-amber-500/10 text-amber-300 border-amber-500/30";
+                    roleTitle = "👑 SuperAdmin (HQ)";
+                    roleIcon = Shield;
+                  } else if (u.role === "regional_admin") {
+                    roleBadgeColor = "bg-purple-500/10 text-purple-300 border-purple-500/30";
+                    roleTitle = "🌐 Regional Partner (RD)";
+                    roleIcon = Globe;
+                  } else if (u.role === "operator") {
+                    roleBadgeColor = "bg-cyan-500/10 text-cyan-300 border-cyan-500/30";
+                    roleTitle = "📍 Territory Partner (TP)";
+                    roleIcon = Building2;
+                  } else if (u.role === "specialist") {
+                    roleBadgeColor = "bg-emerald-500/10 text-emerald-300 border-emerald-500/30";
+                    roleTitle = "💼 Специалист / Мастер";
+                    roleIcon = UserCheck;
+                  } else if (u.role === "coordinator") {
+                    roleBadgeColor = "bg-teal-500/10 text-teal-300 border-teal-500/30";
+                    roleTitle = "📋 Координатор";
+                    roleIcon = Users;
+                  }
+
+                  const RoleIconComponent = roleIcon;
+
+                  return (
+                    <div
+                      key={u.id}
+                      className={`bg-slate-900/90 border rounded-2xl p-5 sm:p-6 transition-all shadow-md hover:border-slate-700 relative group ${
+                        isBlocked
+                          ? "border-rose-900/50 bg-rose-950/10"
+                          : isCurrentSuper
+                          ? "border-amber-500/30 bg-amber-950/10"
+                          : "border-slate-800"
+                      }`}
+                    >
+                      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5">
+                        {/* User Identity & Avatar */}
+                        <div className="flex items-start sm:items-center gap-4 min-w-0 flex-1">
+                          <div className="relative shrink-0">
+                            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-300 font-bold text-lg shadow-inner">
+                              {u.photoUrl || u.avatar ? (
+                                <img
+                                  src={u.photoUrl || u.avatar}
+                                  alt={u.name || "User"}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span>{(u.name || u.email || "U").substring(0, 2).toUpperCase()}</span>
+                              )}
+                            </div>
+                            <div
+                              className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${
+                                isBlocked ? "bg-rose-500" : "bg-emerald-500"
+                              }`}
+                              title={isBlocked ? "Заморожен" : "Активен"}
+                            />
+                          </div>
+
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-base font-bold text-white truncate flex items-center gap-2">
+                                <span>{u.name || "Безымянный пользователь"}</span>
+                                {isCurrentSuper && (
+                                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-mono font-bold">
+                                    HQ DIRECTOR
+                                  </span>
+                                )}
+                              </h4>
+
+                              <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1 ${roleBadgeColor}`}>
+                                <RoleIconComponent className="w-3 h-3" />
+                                <span>{roleTitle}</span>
+                              </span>
+
+                              {isBlocked && (
+                                <span className="px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-bold rounded-md flex items-center gap-1">
+                                  <Lock className="w-3 h-3" />
+                                  <span>ЗАМОРОЖЕН</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono">
+                              <div className="flex items-center gap-1 text-slate-400">
+                                <span>ID:</span>
+                                <span className="text-slate-300">{u.id}</span>
+                                <button
+                                  onClick={() => handleCopyText(u.id, u.id)}
+                                  className="p-1 hover:text-white transition-colors cursor-pointer"
+                                  title="Скопировать ID"
+                                >
+                                  {copiedUserId === u.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                              </div>
+
+                              {u.dashboardNumber && (
+                                <div className="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                                  <span className="text-cyan-400 font-bold">Пульт:</span>
+                                  <span className="text-white font-bold">{u.dashboardNumber}</span>
+                                </div>
+                              )}
+
+                              {u.city && (
+                                <div className="flex items-center gap-1 text-slate-300">
+                                  <MapPin className="w-3 h-3 text-rose-400" />
+                                  <span>{u.city}</span>
+                                  {u.region && u.region !== "All" && <span className="text-slate-400">({u.region})</span>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Middle Info Column (Contacts & Specifics) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full xl:w-auto xl:min-w-[320px] text-xs">
+                          {/* Contacts Box */}
+                          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 space-y-1.5">
+                            <div className="flex items-center justify-between text-slate-400">
+                              <span className="font-bold flex items-center gap-1">
+                                <Mail className="w-3 h-3 text-cyan-400" />
+                                <span className="truncate max-w-[150px]">{u.email || "Нет email"}</span>
+                              </span>
+                              {u.email && (
+                                <button
+                                  onClick={() => handleCopyText(u.email || "", `${u.id}-email`)}
+                                  className="text-slate-500 hover:text-white"
+                                  title="Копировать email"
+                                >
+                                  {copiedUserId === `${u.id}-email` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between text-slate-400">
+                              <span className="font-bold flex items-center gap-1">
+                                <Phone className="w-3 h-3 text-emerald-400" />
+                                <span>{u.phone || "Нет телефона"}</span>
+                              </span>
+                              {u.phone && (
+                                <button
+                                  onClick={() => handleCopyText(u.phone || "", `${u.id}-phone`)}
+                                  className="text-slate-500 hover:text-white"
+                                  title="Копировать телефон"
+                                >
+                                  {copiedUserId === `${u.id}-phone` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Role-Specific Stats Box */}
+                          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 space-y-1 text-slate-300">
+                            {u.role === "specialist" ? (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400">Сфера:</span>
+                                  <span className="font-bold text-emerald-400 truncate max-w-[110px]">{u.category || specProfile?.category || "Home Services"}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400">Баланс:</span>
+                                  <span className="font-bold text-white font-mono">€{specProfile?.balance ?? 100}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-400">Статус:</span>
+                                  <span className={`font-bold ${
+                                    u.specialistStatus === "approved" ? "text-emerald-400" :
+                                    u.specialistStatus === "pending_review" ? "text-amber-400" : "text-slate-400"
+                                  }`}>
+                                    {u.specialistStatus === "approved" ? "Верифицирован" :
+                                     u.specialistStatus === "pending_review" ? "На проверке" : "Не запрошен"}
+                                  </span>
+                                </div>
+                              </>
+                            ) : u.role === "customer" ? (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400">Заказов:</span>
+                                  <span className="font-bold text-white font-mono">{userOrders.length}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400">Активных:</span>
+                                  <span className="font-bold text-amber-400 font-mono">
+                                    {userOrders.filter(j => !["completed", "cancelled"].includes(j.status)).length}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-400">Регион:</span>
+                                  <span className="text-slate-300 font-medium truncate max-w-[110px]">{u.city || "Португалия"}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400">Территория:</span>
+                                  <span className="font-bold text-cyan-400 truncate max-w-[110px]">{u.region || "All Portugal"}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-400">Пульт управления:</span>
+                                  <span className="font-bold text-white font-mono">{u.dashboardNumber || "Auto"}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-400">Доступ:</span>
+                                  <span className="font-bold text-emerald-400">Полный партнерский</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Actions Toolbar */}
+                        <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-end pt-3 xl:pt-0 border-t xl:border-t-0 border-slate-800/80">
+                          {/* 1. Takeover (Impersonate) Button */}
+                          <button
+                            onClick={() => store.impersonateUser(u)}
+                            className="px-3.5 py-2 bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                            title={`Войти в систему от имени ${u.name || u.email}`}
+                          >
+                            <Zap className="w-3.5 h-3.5 text-cyan-400 group-hover:text-white" />
+                            <span>Takeover (Вход)</span>
+                          </button>
+
+                          {/* 2. Freeze / Unfreeze Toggle */}
+                          <button
+                            onClick={() => handleToggleBlock(u.id, isBlocked, u.name || u.email || "User")}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
+                              isBlocked
+                                ? "bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border-emerald-500/40"
+                                : "bg-amber-500/10 hover:bg-amber-500 hover:text-slate-950 text-amber-400 border-amber-500/30"
+                            }`}
+                            title={isBlocked ? "Разморозить профиль" : "Заморозить профиль (блокировка доступа)"}
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>{isBlocked ? "Разморозить" : "Заморозка"}</span>
+                          </button>
+
+                          {/* 3. Edit User Profile */}
+                          <button
+                            onClick={() => handleOpenEditUser(u)}
+                            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="Редактировать параметры профиля и права"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Правка</span>
+                          </button>
+
+                          {/* 4. Details / Inspector */}
+                          <button
+                            onClick={() => setSelectedUserForInspection(u)}
+                            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="Подробная информация об аккаунте"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Инспектор</span>
+                          </button>
+
+                          {/* 5. Chat */}
+                          <button
+                            onClick={() => handleCallToChat(u.id)}
+                            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition-all cursor-pointer"
+                            title="Открыть чат с пользователем"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* 6. Delete Account (Not available for primary super admin) */}
+                          {u.id !== "user-super-01" && (
+                            <button
+                              onClick={() => setPartnerToDelete({ id: u.id, name: u.name || u.email || "User" })}
+                              className="p-2 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/20 rounded-xl transition-all cursor-pointer"
+                              title="Удалить аккаунт навсегда"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
       {/* VIEW 3: UNIFIED SIGNALS, TICKETS & INITIATIVES CENTER */}
       {activeTab === "signals" && (() => {
         // Prepare unified list of items: Support Tickets + Suggestions/Complaints + Synthetic SLA alerts
@@ -2487,6 +3333,321 @@ export default function SuperAdminDashboard({
               </button>
             </div>
             <CalculatorsPage />
+          </div>
+        </div>
+      )}
+
+      {/* 👤 CREATE / EDIT USER MODAL */}
+      {userModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 relative shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-2xl border border-cyan-500/20">
+                  {userModalMode === "create" ? <UserPlus className="w-6 h-6" /> : <Edit2 className="w-6 h-6" />}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    {userModalMode === "create" ? "Создание Нового Пользователя" : "Редактирование Профиля"}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {userModalMode === "create"
+                      ? "Добавление новой учетной записи в базу данных NordBase"
+                      : `Управление параметрами учетной записи ${userForm.name || userForm.email}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setUserModalOpen(false)}
+                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Name */}
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-bold text-slate-300">ФИО / Название Профиля *</label>
+                <input
+                  type="text"
+                  value={userForm.name}
+                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                  placeholder="Иван Петров / Мастер на все руки"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                />
+              </div>
+
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Email адрес *</label>
+                <input
+                  type="email"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  placeholder="user@nordbase.pt"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Телефон</label>
+                <input
+                  type="tel"
+                  value={userForm.phone}
+                  onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
+                  placeholder="+351 912 345 678"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                />
+              </div>
+
+              {/* Role */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Роль в Системе *</label>
+                <select
+                  value={userForm.role}
+                  onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors cursor-pointer"
+                >
+                  <option value="customer">👥 Заказчик (Клиент)</option>
+                  <option value="specialist">💼 Специалист / Мастер</option>
+                  <option value="operator">📍 Территориальный Партнер (TP)</option>
+                  <option value="regional_admin">🌐 Региональный Партнер (RD)</option>
+                  <option value="super_admin">👑 SuperAdmin (HQ)</option>
+                  <option value="coordinator">📋 Координатор</option>
+                </select>
+              </div>
+
+              {/* District / Region */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Регион / Округ</label>
+                <select
+                  value={userForm.region}
+                  onChange={(e) => setUserForm({ ...userForm, region: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors cursor-pointer"
+                >
+                  <option value="All">All Portugal (Вся Португалия)</option>
+                  {PORTUGAL_GEO.map((g) => (
+                    <option key={g.id} value={g.name}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* City */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Город / Населенный пункт</label>
+                <input
+                  type="text"
+                  value={userForm.city}
+                  onChange={(e) => setUserForm({ ...userForm, city: e.target.value })}
+                  placeholder="Portimão, Faro, Lisboa, Porto..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                />
+              </div>
+
+              {/* Dashboard Number (for staff/partners) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Номер Пульта (Dashboard ID)</label>
+                <input
+                  type="text"
+                  value={userForm.dashboardNumber}
+                  onChange={(e) => setUserForm({ ...userForm, dashboardNumber: e.target.value })}
+                  placeholder="PT-OP-001, PT-RD-001..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                />
+              </div>
+
+              {/* Specialist specific fields */}
+              {userForm.role === "specialist" && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-300">Категория Работ</label>
+                    <input
+                      type="text"
+                      value={userForm.category}
+                      onChange={(e) => setUserForm({ ...userForm, category: e.target.value })}
+                      placeholder="Home Services, IT & Tech, Cleaning..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-300">Статус Верификации</label>
+                    <select
+                      value={userForm.specialistStatus}
+                      onChange={(e) => setUserForm({ ...userForm, specialistStatus: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors cursor-pointer"
+                    >
+                      <option value="approved">✅ Верифицирован (Approved)</option>
+                      <option value="pending_review">🟡 На проверке (Pending Review)</option>
+                      <option value="rejected">❌ Отклонен (Rejected)</option>
+                      <option value="not_requested">⚪ Не запрошен (Not Requested)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-xs font-bold text-slate-300">Описание Навыков & Опыта</label>
+                    <textarea
+                      rows={2}
+                      value={userForm.skillsDescription}
+                      onChange={(e) => setUserForm({ ...userForm, skillsDescription: e.target.value })}
+                      placeholder="Краткое описание квалификации мастера..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors resize-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Freeze status checkbox */}
+              <div className="sm:col-span-2 pt-2">
+                <label className="flex items-center gap-3 p-3 bg-slate-950/60 border border-slate-800 rounded-xl cursor-pointer hover:border-slate-700 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={userForm.isBlocked}
+                    onChange={(e) => setUserForm({ ...userForm, isBlocked: e.target.checked })}
+                    className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 bg-slate-900 border-slate-700"
+                  />
+                  <div className="text-xs">
+                    <div className="font-bold text-white flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Заморозить доступ (Заблокировать профиль)</span>
+                    </div>
+                    <div className="text-slate-400">Пользователь не сможет войти в систему и выполнять операции</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+              <button
+                onClick={() => setUserModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSaveUserForm}
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-600/20 cursor-pointer"
+              >
+                {userModalMode === "create" ? "Создать Аккаунт" : "Сохранить Изменения"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔍 USER INSPECTOR DETAIL MODAL */}
+      {selectedUserForInspection && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full p-6 sm:p-8 relative shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-white font-bold text-lg">
+                  {(selectedUserForInspection.name || selectedUserForInspection.email || "U").substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span>{selectedUserForInspection.name || "Безымянный пользователь"}</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+                      {selectedUserForInspection.role}
+                    </span>
+                  </h3>
+                  <div className="text-xs text-slate-400 font-mono">ID: {selectedUserForInspection.id}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedUserForInspection(null)}
+                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                <h5 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">Контактные данные</h5>
+                <div className="space-y-2 text-slate-300">
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">Email:</span>
+                    <span className="font-mono text-white">{selectedUserForInspection.email || "—"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">Телефон:</span>
+                    <span className="font-mono text-white">{selectedUserForInspection.phone || "—"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">WhatsApp:</span>
+                    <span className="font-mono text-white">{selectedUserForInspection.whatsapp || "—"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">Telegram:</span>
+                    <span className="font-mono text-white">{selectedUserForInspection.telegram || "—"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                <h5 className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">Параметры & Права</h5>
+                <div className="space-y-2 text-slate-300">
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">Регион:</span>
+                    <span className="text-cyan-400 font-bold">{selectedUserForInspection.region || "All"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">Город:</span>
+                    <span className="text-white">{selectedUserForInspection.city || "—"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">Номер пульта:</span>
+                    <span className="font-mono text-white">{selectedUserForInspection.dashboardNumber || "—"}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-900 pb-1.5">
+                    <span className="text-slate-500">Статус аккаунта:</span>
+                    <span className={`font-bold ${selectedUserForInspection.isBlocked ? "text-rose-400" : "text-emerald-400"}`}>
+                      {selectedUserForInspection.isBlocked ? "🔴 Заморожен / Блок" : "🟢 Активен"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick action footer */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+              <button
+                onClick={() => {
+                  store.impersonateUser(selectedUserForInspection);
+                  setSelectedUserForInspection(null);
+                }}
+                className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-cyan-600/20"
+              >
+                <Zap className="w-4 h-4" />
+                <span>Войти от имени пользователя (Takeover)</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const u = selectedUserForInspection;
+                    setSelectedUserForInspection(null);
+                    handleOpenEditUser(u);
+                  }}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit2 className="w-4 h-4 text-slate-400" />
+                  <span>Редактировать</span>
+                </button>
+                <button
+                  onClick={() => setSelectedUserForInspection(null)}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Закрыть
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
