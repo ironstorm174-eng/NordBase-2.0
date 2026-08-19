@@ -630,17 +630,42 @@ class AppStore {
     this.state.selectedCategory = null;
     this.saveState();
   }
+  // Action: Set current user explicitly
+  public setCurrentUser(user: AuthUser) {
+    this.state.currentUser = user;
+    this.state.currentRole = user.role;
+    if (user.role === 'customer') {
+      this.state.currentPath = '/app';
+    } else if (user.role === 'specialist') {
+      this.state.currentPath = '/pro';
+    } else if (user.role === 'operator') {
+      this.state.currentPath = '/ops';
+    } else if (user.role === 'regional_admin') {
+      this.state.currentPath = '/regional_admin';
+    } else if (user.role === 'super_admin') {
+      this.state.currentPath = '/superadmin';
+    }
+    this.saveState();
+  }
+
   // Action: Authenticate (Google OAuth + Phone OTP sequential completion)
   public async authenticate(
-    email: string,
-    phone: string,
-    name: string,
+    emailOrUser: string | AuthUser,
+    phone: string = '',
+    name: string = '',
     chosenRole: UserRole = 'customer',
     password?: string,
     dashboardNumber?: string,
     isRegistration?: boolean,
     photoUrl?: string
   ): Promise<AuthUser> {
+    if (typeof emailOrUser === 'object' && emailOrUser !== null) {
+      const userObj = emailOrUser as AuthUser;
+      this.setCurrentUser(userObj);
+      return userObj;
+    }
+
+    const email = String(emailOrUser || '');
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedPhone = phone.trim();
     try {
@@ -699,12 +724,12 @@ class AppStore {
       throw new Error('Access denied. You are not authorized as Super Admin.');
     }
 
-    if (targetRole === 'super_admin') {
+    if (targetRole === 'super_admin' || isSuperAdminEmail) {
       let superUser = this.state.users.find(u => u.role === 'super_admin' && (u.id === 'user-super-01' || (u.email && u.email.toLowerCase() === normalizedEmail.toLowerCase())));
       if (!superUser) {
         superUser = {
           id: 'user-super-01',
-          email: normalizedEmail,
+          email: normalizedEmail || 'ironstorm174@gmail.com',
           phone: normalizedPhone || '+351 901 000 000',
           name: name || 'Oleg Sugrobov',
           role: 'super_admin',
@@ -724,9 +749,9 @@ class AppStore {
     }
 
     const existingRoleUser = this.state.users.find(
-      (u) => u.role === targetRole && (
-        (normalizedPhone && u.phone === normalizedPhone) ||
-        (normalizedEmail && u.email && u.email.toLowerCase() === normalizedEmail.toLowerCase())
+      (u) => (
+        (normalizedEmail && u.email && u.email.toLowerCase().trim() === normalizedEmail.toLowerCase().trim()) ||
+        (normalizedPhone && u.phone && u.phone.trim() === normalizedPhone)
       )
     );
 

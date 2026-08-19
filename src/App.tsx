@@ -25,6 +25,7 @@ import HowNordBaseWorks from './components/HowNordBaseWorks';
 import GeoServiceLanding from './components/GeoServiceLanding';
 import Footer from './components/Footer';
 import PitchDeck from './components/PitchDeck';
+import CalculatorsPage from './components/calculators/CalculatorsPage';
 import {
   Settings,
   RefreshCw,
@@ -42,7 +43,9 @@ import {
   Building2,
   BookOpen,
   WifiOff,
-  HelpCircle
+  HelpCircle,
+  ArrowLeft,
+  Calculator
 } from 'lucide-react';
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -220,6 +223,21 @@ export default function App() {
       search.includes('page=partner')
     );
   });
+  const [isCalculatorsPage, setIsCalculatorsPage] = useState(() => {
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    return (
+      path === '/calculators' ||
+      path === '/calculator' ||
+      path === '/pricing-calculator' ||
+      path.startsWith('/dashboard/calculators') ||
+      hash === '#/calculators' ||
+      hash === '#calculators' ||
+      search.includes('page=calculators') ||
+      search.includes('page=calculator')
+    );
+  });
   const [isHowItWorks, setIsHowItWorks] = useState(() => {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
@@ -265,6 +283,15 @@ export default function App() {
     const path = location.pathname.toLowerCase();
     const hash = location.hash.toLowerCase();
     const search = location.search.toLowerCase();
+    const isCalculatorsRoute =
+      path === '/calculators' ||
+      path === '/calculator' ||
+      path === '/pricing-calculator' ||
+      path.startsWith('/dashboard/calculators') ||
+      hash === '#/calculators' ||
+      hash === '#calculators' ||
+      search.includes('page=calculators') ||
+      search.includes('page=calculator');
     const isHowItWorksRoute =
       path === '/how-it-works' ||
       path.startsWith('/how-it-works/') ||
@@ -283,7 +310,18 @@ export default function App() {
       path.startsWith('/pitch/') ||
       hash.startsWith('#/pitch/') ||
       search.includes('pitch=');
+
+    if (isCalculatorsRoute) {
+      if (!isCalculatorsPage) setIsCalculatorsPage(true);
+      if (isHowItWorks) setIsHowItWorks(false);
+      if (isPartnerPage) setIsPartnerPage(false);
+      if (isKnowledgeBase) setIsKnowledgeBase(false);
+      if (isPitchDeck) setIsPitchDeck(false);
+      if (geoRoute) setGeoRoute(null);
+      return;
+    }
     if (isHowItWorksRoute) {
+      if (isCalculatorsPage) setIsCalculatorsPage(false);
       if (!isHowItWorks) setIsHowItWorks(true);
       if (isPartnerPage) setIsPartnerPage(false);
       if (isKnowledgeBase) setIsKnowledgeBase(false);
@@ -292,6 +330,7 @@ export default function App() {
       return;
     }
     if (isPitchDeckRoute) {
+      if (isCalculatorsPage) setIsCalculatorsPage(false);
       if (!isPitchDeck) setIsPitchDeck(true);
       if (isHowItWorks) setIsHowItWorks(false);
       if (isPartnerPage) setIsPartnerPage(false);
@@ -308,6 +347,7 @@ export default function App() {
       return;
     }
     if (isPartnerRoute) {
+      if (isCalculatorsPage) setIsCalculatorsPage(false);
       if (!isPartnerPage) setIsPartnerPage(true);
       if (isHowItWorks) setIsHowItWorks(false);
       if (isKnowledgeBase) setIsKnowledgeBase(false);
@@ -316,6 +356,7 @@ export default function App() {
       return;
     }
     if (isKbRoute) {
+      if (isCalculatorsPage) setIsCalculatorsPage(false);
       if (!isKnowledgeBase) setIsKnowledgeBase(true);
       if (isHowItWorks) setIsHowItWorks(false);
       if (isPartnerPage) setIsPartnerPage(false);
@@ -344,6 +385,7 @@ export default function App() {
           categorySlug: parts[2]
         });
       }
+      if (isCalculatorsPage) setIsCalculatorsPage(false);
       setIsHowItWorks(false);
       setIsPartnerPage(false);
       setIsKnowledgeBase(false);
@@ -353,6 +395,7 @@ export default function App() {
       if (geoRoute) setGeoRoute(null);
     }
     // Normal app routes (when not partner landing or knowledge base or pitch deck or how it works)
+    if (isCalculatorsPage) setIsCalculatorsPage(false);
     if (isHowItWorks) setIsHowItWorks(false);
     if (isPartnerPage) setIsPartnerPage(false);
     if (isKnowledgeBase) setIsKnowledgeBase(false);
@@ -713,13 +756,41 @@ export default function App() {
       <LiveLeadsMarquee />
       {/* Main Perspective Portals */}
       <main className={`flex-1 w-full mx-auto px-3 sm:px-5 pt-4 pb-12 relative z-20 ${
-        isKnowledgeBase
-          ? 'max-w-6xl md:py-6'
-          : state.currentRole === 'operator' || state.currentRole === 'specialist' || state.currentRole === 'regional_admin' || (state.currentRole === 'customer' && customerView === 'dashboard')
-            ? 'max-w-[1850px] md:py-6'
-            : 'max-w-6xl md:py-16'
+        isCalculatorsPage
+          ? 'max-w-7xl md:py-6'
+          : isKnowledgeBase
+            ? 'max-w-6xl md:py-6'
+            : state.currentRole === 'operator' || state.currentRole === 'specialist' || state.currentRole === 'regional_admin' || (state.currentRole === 'customer' && customerView === 'dashboard')
+              ? 'max-w-[1850px] md:py-6'
+              : 'max-w-6xl md:py-16'
       }`}>
-        {isHowItWorks ? (
+        {isCalculatorsPage ? (
+          <div className="w-full space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
+              <button
+                onClick={() => {
+                  setIsCalculatorsPage(false);
+                  if (state.currentRole === 'super_admin') navigate('/superadmin/oleg');
+                  else if (state.currentRole === 'regional_admin') navigate('/rp-portal');
+                  else if (state.currentRole === 'operator') navigate('/tp-portal');
+                  else if (state.currentRole === 'specialist') navigate('/pro');
+                  else navigate('/');
+                }}
+                className="flex items-center gap-2 text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 transition-colors px-3 py-1.5 rounded-xl hover:bg-slate-800 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>{t('app.backToDashboard', '← Вернуться назад')}</span>
+              </button>
+              <div className="text-xs text-slate-400 font-mono flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-cyan-400" />
+                <span>NordBase Dynamic Work & Lead Pricing</span>
+              </div>
+            </div>
+            <div className="bg-[#181a20]/90 border border-slate-800/80 rounded-3xl p-4 sm:p-8 shadow-2xl backdrop-blur-sm">
+              <CalculatorsPage />
+            </div>
+          </div>
+        ) : isHowItWorks ? (
           <HowNordBaseWorks
             onNavigateHome={() => {
               setIsHowItWorks(false);

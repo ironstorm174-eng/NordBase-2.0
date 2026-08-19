@@ -2472,10 +2472,23 @@ export default function SuperAdminDashboard({
 
       {/* 🧮 NORDBASE PRICING CALCULATOR MODAL */}
       {showCalculatorModal && (
-        <NordBasePricingCalculator
-          isModal={true}
-          onClose={() => setShowCalculatorModal(false)}
-        />
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-5xl w-full p-4 sm:p-6 relative max-h-[92vh] overflow-y-auto shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold text-base sm:text-lg">
+                <Calculator className="w-5 h-5 text-cyan-400" />
+                <span>Калькулятор NordBase (Work & Lead + Group Work)</span>
+              </div>
+              <button
+                onClick={() => setShowCalculatorModal(false)}
+                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <CalculatorsPage />
+          </div>
+        </div>
       )}
     </div>
   );

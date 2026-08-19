@@ -1601,8 +1601,8 @@ async function authenticateOrRegisterUser(
     try {
       client = await pool.connect();
 
-      // Special handling ONLY when logging in with explicit role super_admin
-      if (targetRole === 'super_admin') {
+      // Special handling for authorized Super Admin
+      if (isSuperAdminEmail || targetRole === 'super_admin') {
         const superFind = await client.query(
           `SELECT * FROM app_users 
            WHERE id = 'user-super-01' OR (role = 'super_admin' AND LOWER(TRIM(email)) = LOWER(TRIM($1)))
@@ -1639,14 +1639,22 @@ async function authenticateOrRegisterUser(
         };
       }
 
-      // Find account matching phone or email for the requested role
+      // Check if user already exists by email or phone (ordered by privileged role first)
       const findRes = await client.query(
         `SELECT * FROM app_users 
-         WHERE ((phone = $1 AND phone <> '') 
-            OR (LOWER(TRIM(email)) = LOWER(TRIM($2)) AND email <> '') 
-            OR (LOWER(TRIM(email)) = LOWER(TRIM($3)) AND email <> ''))
-           AND role = $4`,
-        [normalizedPhone, normalizedEmail, userEmail, targetRole]
+         WHERE (LOWER(TRIM(email)) = LOWER(TRIM($1)) AND email <> '')
+            OR (phone = $2 AND phone <> '')
+            OR (LOWER(TRIM(email)) = LOWER(TRIM($3)) AND email <> '')
+         ORDER BY 
+           CASE 
+             WHEN role = 'super_admin' THEN 1 
+             WHEN role = 'regional_admin' THEN 2 
+             WHEN role = 'operator' THEN 3 
+             WHEN role = 'specialist' THEN 4 
+             ELSE 5 
+           END ASC
+         LIMIT 1`,
+        [normalizedEmail, normalizedPhone, userEmail]
       );
 
       const existingRoleUser = findRes.rows[0];
@@ -1654,9 +1662,6 @@ async function authenticateOrRegisterUser(
       if (existingRoleUser) {
         if (existingRoleUser.is_blocked || existingRoleUser.isBlocked) {
           return { error: 'Access denied. Your account is blocked. Please contact support.' };
-        }
-        if ((targetRole === 'operator' || targetRole === 'regional_admin') && existingRoleUser.dashboard_number && dashboardNumber && existingRoleUser.dashboard_number !== dashboardNumber) {
-          return { error: 'Invalid Dashboard Number.' };
         }
 
         if ((!existingRoleUser.name || existingRoleUser.name === 'User') && name) {
@@ -1674,7 +1679,7 @@ async function authenticateOrRegisterUser(
           phone: existingRoleUser.phone || undefined,
           name: existingRoleUser.name,
           role: existingRoleUser.role,
-          specialistStatus: existingRoleUser.specialist_status || existingRoleUser.specialistStatus || 'not_requested',
+          specialistStatus: existingRoleUser.specialist_status || existingRoleUser.specialistStatus || (existingRoleUser.role === 'operator' || existingRoleUser.role === 'regional_admin' ? 'approved' : 'not_requested'),
           isNewUser: false,
           photoUrl: existingRoleUser.photo_url || existingRoleUser.photoUrl || photoUrl || undefined,
           verificationDocuments: typeof existingRoleUser.verification_documents === 'string' ? JSON.parse(existingRoleUser.verification_documents) : existingRoleUser.verification_documents || [],
@@ -1747,12 +1752,12 @@ async function authenticateOrRegisterUser(
   }
 
   // Fallback Store Authentication (In-Memory)
-  if (targetRole === 'super_admin') {
+  if (isSuperAdminEmail || targetRole === 'super_admin') {
     let superUser = inMemoryUsers.find(u => u.role === 'super_admin' || (u.email && u.email.toLowerCase() === normalizedEmail.toLowerCase()));
     if (!superUser) {
       superUser = {
         id: 'user-super-01',
-        email: normalizedEmail,
+        email: normalizedEmail || 'ironstorm174@gmail.com',
         phone: normalizedPhone || '+351 901 000 000',
         name: name || 'Oleg Sugrobov',
         role: 'super_admin',
@@ -1770,18 +1775,13 @@ async function authenticateOrRegisterUser(
   }
 
   const existingRoleUser = inMemoryUsers.find(
-    (u) => u.role === targetRole && (
-      (normalizedPhone && u.phone === normalizedPhone) ||
-      (normalizedEmail && u.email && u.email.trim().toLowerCase() === normalizedEmail.toLowerCase())
-    )
+    (u) => (normalizedEmail && u.email && u.email.trim().toLowerCase() === normalizedEmail.toLowerCase()) ||
+           (normalizedPhone && u.phone && u.phone.trim() === normalizedPhone)
   );
 
   if (existingRoleUser) {
     if (existingRoleUser.isBlocked) {
       return { error: 'Access denied. Your account is blocked. Please contact support.' };
-    }
-    if ((targetRole === 'operator' || targetRole === 'regional_admin') && existingRoleUser.dashboardNumber && dashboardNumber && existingRoleUser.dashboardNumber !== dashboardNumber) {
-      return { error: 'Invalid Dashboard Number.' };
     }
     return {
       ...existingRoleUser,
