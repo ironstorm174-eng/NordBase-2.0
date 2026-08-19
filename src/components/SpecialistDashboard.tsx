@@ -1045,7 +1045,7 @@ export default function SpecialistDashboard({
   const allTickets = storeState.supportTickets || [];
   const specTickets = allTickets.filter(t => t.userId === activeSpecialist?.id || t.userId === currentUser?.id);
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4" id="specialist-dashboard-container">
+    <div className="max-w-[1850px] mx-auto py-8 px-4" id="specialist-dashboard-container">
       
       {/* Premium Text-Only Brand Header */}
       <div className="text-center py-6 md:py-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-top-3 duration-350" id="specialist-portal-header">

@@ -790,7 +790,7 @@ export default function App() {
       {/* Main Perspective Portals */}
       <main className={`flex-1 w-full mx-auto px-3 sm:px-5 pt-4 pb-12 relative z-20 ${
         isCalculatorsPage
-          ? 'max-w-7xl md:py-6'
+          ? 'max-w-[1850px] md:py-6'
           : isKnowledgeBase
             ? 'max-w-6xl md:py-6'
             : state.currentRole === 'operator' || state.currentRole === 'specialist' || state.currentRole === 'regional_admin' || (state.currentRole === 'customer' && customerView === 'dashboard')

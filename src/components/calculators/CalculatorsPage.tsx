@@ -8,7 +8,7 @@ export default function CalculatorsPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl mx-auto w-full">
       <div className="border-b border-slate-800 pb-5">
         <h2 className="text-2xl font-display font-black text-white flex items-center gap-3">
           <Calculator className="w-7 h-7 text-cyan-400" />
