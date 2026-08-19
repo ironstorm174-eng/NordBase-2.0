@@ -59,11 +59,25 @@ export function isMockAccount(u: any): boolean {
 export function sanitizeState(state: AppState): AppState {
   if (!state) return { ...DEFAULT_STATE };
 
-  // Filter users
+  // Filter and sanitize users
   let cleanUsers = (state.users || []).filter(u => !isMockAccount(u));
   if (cleanUsers.length === 0) {
     cleanUsers = [...INITIAL_USERS];
   }
+
+  // Force astrologforme@gmail.com to always be regional_admin Pt-RD-001 in Algarve
+  cleanUsers = cleanUsers.map(u => {
+    if (u.email && u.email.toLowerCase().trim() === 'astrologforme@gmail.com') {
+      return {
+        ...u,
+        role: 'regional_admin',
+        dashboardNumber: 'Pt-RD-001',
+        region: 'Algarve',
+        isBlocked: false
+      };
+    }
+    return u;
+  });
 
   // Filter specialists
   const cleanSpecialists = (state.specialists || []).filter(s => !isMockAccount(s));
@@ -90,6 +104,16 @@ export function sanitizeState(state: AppState): AppState {
   let cleanCurrentUser = state.currentUser;
   if (cleanCurrentUser && isMockAccount(cleanCurrentUser)) {
     cleanCurrentUser = null;
+  }
+
+  if (cleanCurrentUser && cleanCurrentUser.email && cleanCurrentUser.email.toLowerCase().trim() === 'astrologforme@gmail.com') {
+    cleanCurrentUser = {
+      ...cleanCurrentUser,
+      role: 'regional_admin',
+      dashboardNumber: 'Pt-RD-001',
+      region: 'Algarve',
+      isBlocked: false
+    };
   }
 
   return {

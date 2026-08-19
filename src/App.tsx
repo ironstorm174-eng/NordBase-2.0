@@ -676,6 +676,15 @@ export default function App() {
               >
                 EN
               </button>
+              <button
+                onClick={() => i18n.changeLanguage('ru')}
+                className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+                  i18n.language === 'ru' ? 'bg-cyan-500 text-slate-950 font-black shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Русский"
+              >
+                RU
+              </button>
             </div>
             {state.currentUser ? (
               <>

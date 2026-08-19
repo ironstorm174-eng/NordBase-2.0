@@ -598,5 +598,28 @@
     "inline_PaymentSuccessf_134": "Payment Successful!",
     "inline_GATEWAY_135": "GATEWAY",
     "inline_OpenCustomerDos_136": "Open Customer Dossier & Start Chat"
+  },
+  "rp": {
+    "dashboardTitle": "Regional Partner Portal (RP)",
+    "directorTitle": "Regional Director / {{region}}",
+    "hubs": "Territorial Hubs (TP)",
+    "territoryPartners": "Hub Operators",
+    "profiles": "Regional Accounts Registry",
+    "network": "Portugal Network",
+    "alerts": "Alerts & SLA",
+    "inbox": "Incoming Tickets",
+    "audit": "Audit Log",
+    "academy": "RP Academy",
+    "calculator": "Pricing Calculator",
+    "totalRevenue": "Regional Revenue",
+    "activeTPs": "Active TP Hubs",
+    "approvedSpecialists": "Approved Specialists",
+    "activeOrders": "Active Orders",
+    "syncDb": "Database Sync",
+    "approve": "Approve",
+    "reject": "Reject",
+    "freeze": "Freeze",
+    "unfreeze": "Unfreeze",
+    "edit": "Edit"
   }
 }

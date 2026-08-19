@@ -598,5 +598,28 @@
     "inline_PaymentSuccessf_134": "Pagamento Bem-sucedido!",
     "inline_GATEWAY_135": "PORTA DE PAGAMENTO",
     "inline_OpenCustomerDos_136": "Abrir Dossiê do Cliente"
+  },
+  "rp": {
+    "dashboardTitle": "Portal de Parceiro Regional (RP)",
+    "directorTitle": "Diretor Regional / {{region}}",
+    "hubs": "Centrais Territoriais (TP)",
+    "territoryPartners": "Operadores de Central",
+    "profiles": "Registo de Contas Regionais",
+    "network": "Rede Portugal",
+    "alerts": "Alertas e SLA",
+    "inbox": "Tickets Recebidos",
+    "audit": "Registo de Auditoria",
+    "academy": "Academia RP",
+    "calculator": "Calculadora de Preços",
+    "totalRevenue": "Faturação Regional",
+    "activeTPs": "Centrais TP Ativas",
+    "approvedSpecialists": "Especialistas no Registo",
+    "activeOrders": "Pedidos Ativos",
+    "syncDb": "Sincronizar BD",
+    "approve": "Aprovar",
+    "reject": "Rejeitar",
+    "freeze": "Congelar",
+    "unfreeze": "Descongelar",
+    "edit": "Editar"
   }
 }

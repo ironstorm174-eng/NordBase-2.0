@@ -807,6 +807,24 @@ async function initDb() {
         }
       }
 
+      // Always guarantee Dana B (astrologforme@gmail.com) is a Regional Partner for Algarve in app_users
+      const danaEmail = 'astrologforme@gmail.com';
+      const danaCheck = await client.query('SELECT * FROM app_users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))', [danaEmail]);
+      if (danaCheck.rows.length === 0) {
+        await client.query(
+          `INSERT INTO app_users (id, email, phone, name, role, specialist_status, city, region, dashboard_number, is_blocked) 
+           VALUES ('user-rp-dana', $1, '+351 912 000 001', 'Dana (Regional Director)', 'regional_admin', 'not_requested', 'Faro', 'Algarve', 'Pt-RD-001', false)`,
+          [danaEmail]
+        );
+      } else {
+        await client.query(
+          `UPDATE app_users 
+           SET role = 'regional_admin', name = 'Dana (Regional Director)', dashboard_number = 'Pt-RD-001', region = 'Algarve', is_blocked = false 
+           WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))`,
+          [danaEmail]
+        );
+      }
+
       const usersCount = await client.query('SELECT COUNT(*) FROM app_users');
       if (parseInt(usersCount.rows[0].count) === 0) {
         console.log('Pre-populating users table with seed data...');

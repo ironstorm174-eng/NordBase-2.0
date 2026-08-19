@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Job,
   Specialist,
@@ -33,7 +34,7 @@ import {
   Building2,
   Calculator,
 } from "lucide-react";
-import { PORTUGAL_GEO } from "../lib/geo";
+import { PORTUGAL_GEO, NETWORK_23_REGIONS } from "../lib/geo";
 import { LocationSearchInput } from "./LocationSearchInput";
 import Academy from "./Academy";
 import { KnowledgeEvolutionPanel } from "./KnowledgeEvolutionPanel";
@@ -67,6 +68,7 @@ export default function AdminDashboard({
   onUpdateUsers,
   onApproveSpecialist,
 }: AdminDashboardProps) {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<
     "hubs" | "profiles" | "network" | "operators" | "alerts" | "inbox" | "audit" | "academy" | "glossary" | "calculator"
   >("hubs");
@@ -103,6 +105,24 @@ export default function AdminDashboard({
     const reg = (userRegion || "").toLowerCase();
     const city = (userCity || "").toLowerCase();
     if (myReg === "portugal" || myReg === "all" || !myReg) return true;
+
+    // Check if the city/region belongs to myRegion in NETWORK_23_REGIONS
+    const regionDef = NETWORK_23_REGIONS.find(
+      r => r.region.toLowerCase() === myReg || r.name.toLowerCase() === myReg
+    );
+    if (regionDef) {
+      const regionCities = regionDef.hubs.map(h => h.city.toLowerCase());
+      const regionTerritories = regionDef.hubs.flatMap(h => h.territories.map(t => t.toLowerCase()));
+      if (
+        regionCities.includes(city) || 
+        regionTerritories.includes(city) ||
+        regionCities.includes(reg) ||
+        regionTerritories.includes(reg)
+      ) {
+        return true;
+      }
+    }
+
     if (myReg === "big lisboa") {
       const bigLisboaCities = ["cascais", "sintra", "amadora", "oeiras", "loures", "odivelas", "almada", "barreiro", "seixal", "moita", "montijo", "lisboa"];
       return bigLisboaCities.some(c => city.includes(c) || reg.includes(c)) || reg === "big lisboa";
@@ -364,10 +384,10 @@ export default function AdminDashboard({
       <div className="mb-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 border-b border-white/5 pb-6">
         <div>
           <h2 className="text-3xl sm:text-4xl font-display font-black text-white tracking-tight">
-            {directorTitle} <span className="text-cyan-400">/{dashboardId}</span>
+            {t('rp.directorTitle', 'Director / {{region}}', { region: myRegion })} <span className="text-cyan-400">/{dashboardId}</span>
           </h2>
           <p className="text-slate-400 mt-2 text-base sm:text-lg max-w-2xl">
-            Regional Operations Command Center. Manage territory partners, track district coverage, and coordinate service requests.
+            {t('rp.dashboardSubtitle', 'Regional Operations Command Center. Manage territory partners, track district coverage, and coordinate service requests.')}
           </p>
         </div>
         
@@ -375,30 +395,30 @@ export default function AdminDashboard({
           <button
             onClick={() => setShowCalculatorModal(true)}
             className="bg-slate-900/80 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-bold transition-all cursor-pointer shadow-md active:scale-98"
-            title="NordBase Job & Lead Calculator"
+            title={t('rp.calculatorTitle', 'NordBase Job & Lead Calculator')}
           >
             <Calculator className="w-4 h-4 text-cyan-400" />
-            <span>Калькулятор NordBase</span>
+            <span>{t('rp.calculator', 'Калькулятор NordBase')}</span>
           </button>
           <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-5 py-3 flex items-center gap-3 shadow-lg">
             <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]"></div>
-            <span className="text-base font-bold text-white tracking-wide">Region Active</span>
+            <span className="text-base font-bold text-white tracking-wide">{t('rp.regionActive', 'Region Active')}</span>
           </div>
         </div>
       </div>
       {/* 🧭 NAVIGATION TABS */}
       <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-900/40 p-2.5 rounded-2xl border border-white/5 overflow-x-auto shadow-md">
         {[
-          { id: "hubs", label: "Territorial Hubs (4 TP Seats)", icon: Building2 },
-          { id: "calculator", label: "🧮 Calculator NordBase", icon: Calculator },
-          { id: "profiles", label: "Regional Profiles (Учетные Записи)", icon: UserCheck },
-          { id: "network", label: "Network Overview", icon: Globe },
-          { id: "operators", label: "Operators", icon: Shield },
-          { id: "alerts", label: "Tickets & Incidents", icon: AlertTriangle },
-          { id: "inbox", label: "Inbox & Chat", icon: Inbox },
-          { id: "audit", label: "Security Audit Logs", icon: ShieldAlert },
-          { id: "glossary", label: "AI Glossary & Evolution", icon: Sparkles },
-          { id: "academy", label: "Academy", icon: GraduationCap },
+          { id: "hubs", label: t('rp.hubs', 'Territorial Hubs (4 TP Seats)'), icon: Building2 },
+          { id: "calculator", label: t('rp.calculator', '🧮 Calculator NordBase'), icon: Calculator },
+          { id: "profiles", label: t('rp.profiles', 'Regional Profiles'), icon: UserCheck },
+          { id: "network", label: t('rp.network', 'Network Overview'), icon: Globe },
+          { id: "operators", label: t('rp.territoryPartners', 'Operators'), icon: Shield },
+          { id: "alerts", label: t('rp.alerts', 'Tickets & Incidents'), icon: AlertTriangle },
+          { id: "inbox", label: t('rp.inbox', 'Inbox & Chat'), icon: Inbox },
+          { id: "audit", label: t('rp.audit', 'Security Audit Logs'), icon: ShieldAlert },
+          { id: "glossary", label: t('rp.glossary', 'AI Glossary & Evolution'), icon: Sparkles },
+          { id: "academy", label: t('rp.academy', 'Academy'), icon: GraduationCap },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
