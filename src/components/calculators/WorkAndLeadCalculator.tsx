@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Briefcase, 
   Clock, 
@@ -11,6 +12,7 @@ import { CALCULATOR_CATEGORIES, CALCULATOR_CATEGORY_DETAILS } from '../NordBaseP
 import { calculateWorkPrice, calculateLeadPrice, SpecialistLevelKey, SPECIALIST_LEVELS } from '../../utils/pricing';
 
 export default function WorkAndLeadCalculator() {
+  const { t } = useTranslation();
   const [category, setCategory] = useState<ServiceCategory>('Home Services');
   const [level, setLevel] = useState<SpecialistLevelKey>('L2');
   const [hours, setHours] = useState<number>(2);
@@ -27,12 +29,12 @@ export default function WorkAndLeadCalculator() {
             <Briefcase className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Work & Lead Calculator</h3>
-            <p className="text-[11px] text-slate-400">Standard individual job pricing</p>
+            <h3 className="text-lg font-bold text-white">{t('calc.workLeadTitle', 'Work & Lead Calculator')}</h3>
+            <p className="text-[11px] text-slate-400">{t('calc.workLeadSubtitle', 'Standard individual job pricing')}</p>
           </div>
         </div>
         <div className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20 uppercase">
-          Active
+          {t('calc.active', 'Active')}
         </div>
       </div>
 
@@ -40,7 +42,7 @@ export default function WorkAndLeadCalculator() {
         {/* Category */}
         <div>
           <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
-            Service Category
+            {t('calc.serviceCategory', 'Service Category')}
           </label>
           <select
             value={category}
@@ -49,7 +51,7 @@ export default function WorkAndLeadCalculator() {
           >
             {CALCULATOR_CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
-                {CALCULATOR_CATEGORY_DETAILS[cat]?.icon} {CALCULATOR_CATEGORY_DETAILS[cat]?.labelRu || cat}
+                {CALCULATOR_CATEGORY_DETAILS[cat]?.icon} {t(`categories.${cat}`, cat)}
               </option>
             ))}
           </select>
@@ -58,7 +60,7 @@ export default function WorkAndLeadCalculator() {
         {/* Qualification */}
         <div>
           <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
-            Specialist Qualification
+            {t('calc.specialistQual', 'Specialist Qualification')}
           </label>
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(SPECIALIST_LEVELS) as SpecialistLevelKey[]).map((lvlKey) => {
@@ -92,7 +94,7 @@ export default function WorkAndLeadCalculator() {
           <div>
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 mb-2">
               <User className="w-3.5 h-3.5 text-slate-400" />
-              Specialists
+              {t('calc.specialists', 'Specialists')}
             </label>
             <div className="flex items-center gap-2">
               <button
@@ -121,7 +123,7 @@ export default function WorkAndLeadCalculator() {
           <div>
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 mb-2">
               <Clock className="w-3.5 h-3.5 text-blue-400" />
-              Hours / Spec (Min 2)
+              {t('calc.hoursSpec', 'Hours / Spec (Min 2)')}
             </label>
             <div className="flex items-center gap-2">
               <button
@@ -152,7 +154,7 @@ export default function WorkAndLeadCalculator() {
 
         <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-2">
           <Sparkles className="w-3.5 h-3.5" />
-          Materials are entirely excluded from calculations and handled directly with the client.
+          {t('calc.materialsExcl', 'Materials are entirely excluded from calculations and handled directly with the client.')}
         </p>
       </div>
 
@@ -160,28 +162,28 @@ export default function WorkAndLeadCalculator() {
       <div className="bg-slate-950/80 p-6 rounded-b-3xl border-t border-slate-800">
         <div className="space-y-3 text-sm">
           <div className="flex justify-between items-center py-1">
-            <span className="text-slate-400">Total Work Hours</span>
-            <span className="font-mono text-white">{workResult.totalHours} hrs</span>
+            <span className="text-slate-400">{t('calc.totalWorkHours', 'Total Work Hours')}</span>
+            <span className="font-mono text-white">{workResult.totalHours} {t('calc.hours', 'hrs')}</span>
           </div>
           <div className="flex justify-between items-center py-1">
-            <span className="text-slate-400">Calculated Work Cost</span>
+            <span className="text-slate-400">{t('calc.calcWorkCost', 'Calculated Work Cost')}</span>
             <div className="flex flex-col items-end">
               <span className="font-mono text-white font-bold">€{workResult.workCost.toFixed(2)}</span>
               {workResult.isMinLaborApplied && (
-                <span className="text-[10px] text-amber-400 uppercase tracking-wider">Min €50 Applied</span>
+                <span className="text-[10px] text-amber-400 uppercase tracking-wider">{t('calc.minApplied', 'Min €50 Applied', { value: '€50' })}</span>
               )}
             </div>
           </div>
           <div className="flex justify-between items-center py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 mt-2">
             <div>
-              <span className="font-bold text-slate-300 block">Lead Price</span>
-              <span className="text-[10px] font-mono text-cyan-400">{leadResult.formulaText}</span>
+              <span className="font-bold text-slate-300 block">{t('calc.leadPrice', 'Lead Price')}</span>
+              <span className="text-[10px] font-mono text-cyan-400">{t('calc.formulaText', 'Formula:')} {leadResult.formulaText}</span>
             </div>
             <span className="font-mono font-bold text-rose-400">€{leadResult.leadFee.toFixed(2)}</span>
           </div>
           
           <div className="flex justify-between items-center pt-4 mt-2 border-t border-white/10">
-            <span className="font-black text-white uppercase tracking-widest text-sm">Total Customer Price</span>
+            <span className="font-black text-white uppercase tracking-widest text-sm">{t('calc.totalCustPrice', 'Total Customer Price')}</span>
             <span className="font-mono font-black text-cyan-400 text-2xl">
               €{(workResult.workCost + leadResult.leadFee).toFixed(2)}
             </span>

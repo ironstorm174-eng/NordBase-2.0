@@ -1,18 +1,21 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Calculator, Truck } from 'lucide-react';
 import WorkAndLeadCalculator from './WorkAndLeadCalculator';
 import GroupWorkCalculator from './GroupWorkCalculator';
 
 export default function CalculatorsPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-6">
       <div className="border-b border-slate-800 pb-5">
         <h2 className="text-2xl font-display font-black text-white flex items-center gap-3">
           <Calculator className="w-7 h-7 text-cyan-400" />
-          NordBase Calculators
+          {t('calc.title', 'NordBase Calculators')}
         </h2>
         <p className="text-slate-400 text-sm mt-1">
-          Centralized tools for pricing calculation, lead fees, and team estimations.
+          {t('calc.subtitle', 'Centralized tools for pricing calculation, lead fees, and team estimations.')}
         </p>
       </div>
 
@@ -27,16 +30,16 @@ export default function CalculatorsPage() {
       {/* Driver / Transport Calculator Placeholder */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 relative overflow-hidden max-w-2xl">
         <div className="absolute top-4 right-4 bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-          Coming next
+          {t('calc.comingNext', 'Coming next')}
         </div>
         <div className="flex items-center gap-3 mb-3">
           <div className="p-3 bg-slate-800 rounded-xl text-slate-400">
             <Truck className="w-6 h-6" />
           </div>
-          <h3 className="text-lg font-bold text-slate-300">Driver / Transport Calculator</h3>
+          <h3 className="text-lg font-bold text-slate-300">{t('calc.comingSubtitle', 'Driver / Transport Calculator')}</h3>
         </div>
         <p className="text-slate-500 text-sm">
-          Calculate delivery, heavy cargo moving, and distance-based rates with specialized vehicle configurations.
+          {t('calc.comingDesc', 'Calculate delivery, heavy cargo moving, and distance-based rates with specialized vehicle configurations.')}
         </p>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Users, 
   Clock, 
@@ -21,6 +22,7 @@ import {
 } from '../../utils/pricing';
 
 export default function GroupWorkCalculator() {
+  const { t } = useTranslation();
   const [category, setCategory] = useState<ServiceCategory>('Home Services');
   const [specialists, setSpecialists] = useState<GroupSpecialistItem[]>([
     { id: 'spec-1', name: 'Specialist 1 (Lead)', level: 'L3', hours: 4, isGroupLead: true },
@@ -85,16 +87,16 @@ export default function GroupWorkCalculator() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-white">Group Work Calculator</h3>
+              <h3 className="text-lg font-bold text-white">{t('calc.groupTitle', 'Group Work Calculator')}</h3>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase tracking-wider font-mono">
-                Team Jobs
+                {t('calc.groupSubtitle', 'Team Jobs')}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Multi-specialist teams with 20% Group Lead fee discount</p>
+            <p className="text-[11px] text-slate-400">{t('calc.groupDesc', 'Multi-specialist teams with 20% Group Lead fee discount')}</p>
           </div>
         </div>
         <div className="bg-purple-500/10 text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-purple-500/20 uppercase tracking-wider">
-          Active
+          {t('calc.active', 'Active')}
         </div>
       </div>
 
@@ -102,7 +104,7 @@ export default function GroupWorkCalculator() {
         {/* Category Selector */}
         <div>
           <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
-            Service Category
+            {t('calc.serviceCategory', 'Service Category')}
           </label>
           <select
             value={category}
@@ -111,7 +113,7 @@ export default function GroupWorkCalculator() {
           >
             {CALCULATOR_CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
-                {CALCULATOR_CATEGORY_DETAILS[cat]?.icon} {CALCULATOR_CATEGORY_DETAILS[cat]?.labelRu || cat}
+                {CALCULATOR_CATEGORY_DETAILS[cat]?.icon} {t(`categories.${cat}`, cat)}
               </option>
             ))}
           </select>
@@ -121,7 +123,7 @@ export default function GroupWorkCalculator() {
         <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-purple-400" />
-            <span className="text-xs font-bold text-slate-300">Preset Hours For All:</span>
+            <span className="text-xs font-bold text-slate-300">{t('calc.presetHours', 'Preset Hours For All:')}</span>
           </div>
           <div className="flex gap-1.5 flex-wrap">
             {[2, 3, 4, 6, 8, 10, 12].map(h => (
@@ -131,7 +133,7 @@ export default function GroupWorkCalculator() {
                 onClick={() => handleApplyHoursToAll(h)}
                 className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-900 hover:bg-purple-950/50 border border-slate-800 text-slate-300 hover:text-purple-300 hover:border-purple-800 transition-all"
               >
-                {h}h
+                {h}{t('calc.hours', 'h')}
               </button>
             ))}
           </div>
@@ -141,8 +143,8 @@ export default function GroupWorkCalculator() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-              <span>Team Members ({specialists.length})</span>
-              <span className="text-[10px] text-purple-400 font-mono font-normal">Min 2 Required</span>
+              <span>{t('calc.teamMembers', 'Team Members ({{count}})', { count: specialists.length })}</span>
+              <span className="text-[10px] text-purple-400 font-mono font-normal">{t('calc.min2Required', 'Min 2 Required')}</span>
             </label>
 
             <button
@@ -151,7 +153,7 @@ export default function GroupWorkCalculator() {
               className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Specialist</span>
+              <span>{t('calc.addSpecialist', 'Add Specialist')}</span>
             </button>
           </div>
 
@@ -190,7 +192,7 @@ export default function GroupWorkCalculator() {
 
                     {spec.isGroupLead && (
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
-                        LEAD
+                        {t('calc.leadBadge', 'LEAD')}
                       </span>
                     )}
                   </div>
@@ -227,7 +229,7 @@ export default function GroupWorkCalculator() {
                       onChange={(e) => handleUpdateSpecialist(spec.id, { hours: Math.max(2, parseFloat(e.target.value) || 2) })}
                       className="w-14 bg-slate-900 border border-slate-800 rounded-lg text-center py-1 text-xs font-mono font-bold text-white focus:outline-none focus:border-purple-500"
                     />
-                    <span className="text-[11px] text-slate-400 font-mono">hrs</span>
+                    <span className="text-[11px] text-slate-400 font-mono">{t('calc.hours', 'hrs')}</span>
                     <button
                       type="button"
                       onClick={() => handleUpdateSpecialist(spec.id, { hours: spec.hours + 1 })}
@@ -254,7 +256,7 @@ export default function GroupWorkCalculator() {
                 {/* Sub-row calculation hint */}
                 <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[11px]">
                   <span className="text-slate-400 font-mono">
-                    €{SPECIALIST_LEVELS[spec.level].hourlyRate}/h × {spec.hours}h
+                    €{SPECIALIST_LEVELS[spec.level].hourlyRate}/h × {spec.hours}{t('calc.hours', 'h')}
                   </span>
                   <span className="font-mono font-bold text-purple-300">
                     = €{(SPECIALIST_LEVELS[spec.level].hourlyRate * Math.max(2, spec.hours)).toFixed(2)}
@@ -270,17 +272,17 @@ export default function GroupWorkCalculator() {
           <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-start gap-2 text-rose-300 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              {!result.isTeamSizeValid && <div>• Minimum 2 specialists required for a Group Job.</div>}
-              {!result.isWorkValueValid && <div>• Minimum total customer work price for Group Job is €100.</div>}
-              {!result.isGroupLeadValid && <div>• Exactly 1 Group Lead must be selected.</div>}
-              {!result.areHoursValid && <div>• Each specialist must have at least 2 hours assigned.</div>}
+              {!result.isTeamSizeValid && <div>• {t('calc.minSizeError', 'Minimum 2 specialists required for a Group Job.')}</div>}
+              {!result.isWorkValueValid && <div>• {t('calc.minValueError', 'Minimum total customer work price for Group Job is €100.')}</div>}
+              {!result.isGroupLeadValid && <div>• {t('calc.minLeadError', 'Exactly 1 Group Lead must be selected.')}</div>}
+              {!result.areHoursValid && <div>• {t('calc.minHoursError', 'Each specialist must have at least 2 hours assigned.')}</div>}
             </div>
           </div>
         )}
 
         <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-          Materials are excluded from calculation. Group Lead receives a 20% discount on the NordBase lead fee.
+          {t('calc.materialsExcl', 'Materials are excluded from calculation. Group Lead receives a 20% discount on the NordBase lead fee.')}
         </p>
       </div>
 
@@ -290,51 +292,51 @@ export default function GroupWorkCalculator() {
           {/* Group summary stats */}
           <div className="grid grid-cols-2 gap-2 pb-3 border-b border-white/10 text-xs">
             <div>
-              <span className="text-slate-400 block">Total Team</span>
-              <span className="font-mono font-bold text-white text-sm">{result.totalTeamSize} specialists</span>
+              <span className="text-slate-400 block">{t('calc.totalTeam', 'Total Team')}</span>
+              <span className="font-mono font-bold text-white text-sm">{result.totalTeamSize} {t('calc.specialists', 'specialists')}</span>
             </div>
             <div>
-              <span className="text-slate-400 block">Group Lead</span>
+              <span className="text-slate-400 block">{t('calc.leadBadge', 'LEAD')}</span>
               <span className="font-bold text-purple-300 text-sm truncate block">
-                👑 {result.groupLead?.name || 'Unassigned'}
+                👑 {result.groupLead?.name || t('calc.unassigned', 'Unassigned')}
               </span>
             </div>
           </div>
 
           <div className="flex justify-between items-center py-1">
-            <span className="text-slate-400">Total Hours</span>
-            <span className="font-mono text-white">{result.totalHours} hrs</span>
+            <span className="text-slate-400">{t('calc.totalWorkHours', 'Total Hours')}</span>
+            <span className="font-mono text-white">{result.totalHours} {t('calc.hours', 'hrs')}</span>
           </div>
 
           <div className="flex justify-between items-center py-1">
-            <span className="text-slate-400">Total Work Value</span>
+            <span className="text-slate-400">{t('calc.totalWorkVal', 'Total Work Value')}</span>
             <span className="font-mono font-bold text-white">€{result.totalWorkValue.toFixed(2)}</span>
           </div>
 
           {/* Lead breakdown */}
           <div className="p-3 rounded-2xl bg-slate-900 border border-purple-500/30 space-y-2 mt-2">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-300">Standard Lead Fee ({result.leadFormulaText})</span>
+              <span className="text-slate-300">{t('calc.stdLeadFee', 'Standard Lead Fee ({{formula}})', { formula: result.leadFormulaText })}</span>
               <span className="font-mono font-bold text-rose-400">€{result.standardLeadFee.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between items-center text-xs text-purple-300">
               <span className="flex items-center gap-1">
                 <Tag className="w-3.5 h-3.5" />
-                Group Lead Discount (20%)
+                {t('calc.groupLeadDisc', 'Group Lead Discount (20%)')}
               </span>
               <span className="font-mono font-bold text-emerald-400">-€{result.groupLeadDiscount.toFixed(2)}</span>
             </div>
 
             <div className="pt-2 border-t border-white/10 flex justify-between items-center font-bold">
-              <span className="text-white text-xs">Final Group Lead Fee</span>
+              <span className="text-white text-xs">{t('calc.finalGroupLead', 'Final Group Lead Fee')}</span>
               <span className="font-mono text-rose-400 text-sm">€{result.finalGroupLeadFee.toFixed(2)}</span>
             </div>
 
             {/* Platform Lead Economics Distribution */}
             <div className="mt-3 pt-2 border-t border-slate-800/80">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                Standard Lead Fee Economic Distribution (€{result.standardLeadFee.toFixed(2)})
+                {t('calc.stdLeadFeeDist', 'Standard Lead Fee Economic Distribution (€{{value}})', { value: result.standardLeadFee.toFixed(2) })}
               </span>
               <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-mono">
                 <div className="p-1.5 bg-slate-950 rounded-lg border border-slate-800">
@@ -360,8 +362,8 @@ export default function GroupWorkCalculator() {
           {/* Customer Price */}
           <div className="flex justify-between items-center pt-3 border-t border-white/10">
             <div>
-              <span className="font-black text-white uppercase tracking-widest text-sm block">Customer Price</span>
-              <span className="text-[10px] text-slate-400">Undiscounted labor value</span>
+              <span className="font-black text-white uppercase tracking-widest text-sm block">{t('calc.custPrice', 'Customer Price')}</span>
+              <span className="text-[10px] text-slate-400">{t('calc.undiscLaborVal', 'Undiscounted labor value')}</span>
             </div>
             <span className="font-mono font-black text-cyan-400 text-2xl">
               €{result.customerPrice.toFixed(2)}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Calculator,
   Clock,
@@ -35,28 +36,28 @@ export const SPECIALIST_LEVELS: Record<SpecialistLevel, SpecialistTierInfo> = {
   L1: {
     id: "L1",
     code: "L1",
-    name: "L1 Amateur (Начинающий)",
+    name: "L1 Amateur",
     nameEn: "L1 Amateur",
     hourlyRate: 20,
-    description: "Базовые и стандартные работы, мелкий бытовой ремонт",
+    description: "Basic and standard work, minor household repairs",
     badgeColor: "bg-blue-500/10 text-blue-400 border-blue-500/30",
   },
   L2: {
     id: "L2",
     code: "L2",
-    name: "L2 Professional (Профи)",
+    name: "L2 Professional",
     nameEn: "L2 Professional",
     hourlyRate: 25,
-    description: "Опытный специалист, сложные монтажные и сервисные задачи",
+    description: "Experienced specialist, complex assembly and service tasks",
     badgeColor: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
   },
   L3: {
     id: "L3",
     code: "L3",
-    name: "L3 Expert (Эксперт)",
+    name: "L3 Expert",
     nameEn: "L3 Expert",
     hourlyRate: 30,
-    description: "Высшая квалификация, ответственные инженерные системы",
+    description: "Highest qualification, critical engineering systems",
     badgeColor: "bg-amber-500/10 text-amber-400 border-amber-500/30",
   },
 };
@@ -188,6 +189,8 @@ export default function NordBasePricingCalculator({
   className = "",
   showTitle = true,
 }: NordBasePricingCalculatorProps) {
+  const { t } = useTranslation();
+
   // Resolve initial category
   const resolvedCategory: ServiceCategory = useMemo(() => {
     if (initialCategory && CALCULATOR_CATEGORIES.includes(initialCategory as ServiceCategory)) {
@@ -233,17 +236,17 @@ export default function NordBasePricingCalculator({
   }, [hours, level, subcategory, category]);
 
   const handleCopySummary = () => {
-    const text = `📋 NordBase Расчет Заказа (Почасовой)
+    const text = `📋 ${t('calc.orderLeadCalc', 'Order & Lead Calculator')}
 ━━━━━━━━━━━━━━━━━━━━
-📁 Категория: ${result.category}
-🛠 Подкатегория: ${result.subcategory}
-⭐ Уровень: ${SPECIALIST_LEVELS[result.level].nameEn} (€${result.hourlyRate}/ч)
-⏱ Объем времени: ${result.hours} ч (мин. 2 ч)
-💰 Работы: €${result.laborCost.toFixed(2)}${result.isMinLaborApplied ? ' (мин. заказ €50)' : ''}
+📁 ${t('calc.serviceCategory', 'Category')}: ${t(`categories.${result.category}`, result.category)}
+🛠 ${t('calc.subcatSpecialty', 'Subcategory')}: ${t(`specialties.${result.subcategory}`, result.subcategory)}
+⭐ ${t('calc.specialistQual', 'Level')}: ${t(`calc.level${result.level}Name`, SPECIALIST_LEVELS[result.level].nameEn)} (€${result.hourlyRate}/${t('calc.hours', 'h')})
+⏱ ${t('calc.hoursExec', 'Execution Time')}: ${result.hours} ${t('calc.hours', 'h')}
+💰 ${t('calc.calcWorkCost', 'Labor')}: €${result.laborCost.toFixed(2)}${result.isMinLaborApplied ? ` (${t('calc.minOrderTriggered', 'min. order €50')})` : ''}
 ━━━━━━━━━━━━━━━━━━━━
-🎯 Итого клиенту: €${result.totalOrderCost.toFixed(2)}
-🏷 Стоимость лида / Комиссия: €${result.leadFee.toFixed(2)} (${result.leadFeePercentage}%)
-💵 Доход мастера (чистыми): €${result.specialistNetPayout.toFixed(2)} (€${result.effectiveSpecialistRate}/ч)`;
+🎯 ${t('calc.totalToCust', 'Total to Customer')}: €${result.totalOrderCost.toFixed(2)}
+🏷 ${t('calc.leadCost', 'Lead Fee')}: €${result.leadFee.toFixed(2)} (${result.leadFeePercentage}%)
+💵 ${t('calc.netIncome', 'Net Income')}: €${result.specialistNetPayout.toFixed(2)} (€${result.effectiveSpecialistRate}/${t('calc.hours', 'h')})`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -264,14 +267,14 @@ export default function NordBasePricingCalculator({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg sm:text-xl font-display font-black text-white tracking-tight">
-                  Калькулятор Заказа и Лида
+                  {t('calc.orderLeadCalc', 'Order & Lead Calculator')}
                 </h3>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 uppercase">
                   NordBase Formula
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Категории и подкатегории синхронизированы с базой данных NordBase
+                {t('calc.calcSync', 'Categories and subcategories are synchronized with the NordBase database')}
               </p>
             </div>
           </div>
@@ -297,9 +300,9 @@ export default function NordBasePricingCalculator({
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between mb-1.5">
                 <span className="flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>1. Категория Услуги ({CALCULATOR_CATEGORIES.length})</span>
+                  <span>{t('calc.serviceCategory', 'Category')} ({CALCULATOR_CATEGORIES.length})</span>
                 </span>
-                <span className="text-[10px] text-cyan-400 font-mono">База NordBase</span>
+                <span className="text-[10px] text-cyan-400 font-mono">NordBase DB</span>
               </label>
 
               <select
@@ -309,7 +312,7 @@ export default function NordBasePricingCalculator({
               >
                 {CALCULATOR_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat} className="bg-slate-900 text-white">
-                    {CALCULATOR_CATEGORY_DETAILS[cat]?.icon} {CALCULATOR_CATEGORY_DETAILS[cat]?.labelRu || cat}
+                    {CALCULATOR_CATEGORY_DETAILS[cat]?.icon} {t(`categories.${cat}`, cat)}
                   </option>
                 ))}
               </select>
@@ -319,10 +322,10 @@ export default function NordBasePricingCalculator({
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between mb-1.5">
                 <span className="flex items-center gap-1.5">
                   <Wrench className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>2. Подкатегория / Специализация</span>
+                  <span>{t('calc.subcatSpecialty', 'Subcategory / Specialty')}</span>
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  {availableSubcategories.length} специальностей
+                  {availableSubcategories.length} {t('calc.specialists', 'specialties')}
                 </span>
               </label>
 
@@ -333,7 +336,7 @@ export default function NordBasePricingCalculator({
               >
                 {availableSubcategories.map((sub) => (
                   <option key={sub} value={sub} className="bg-slate-900 text-white">
-                    {sub}
+                    {t(`specialties.${sub}`, sub)}
                   </option>
                 ))}
               </select>
@@ -345,10 +348,10 @@ export default function NordBasePricingCalculator({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>3. Уровень Специалиста</span>
+                <span>{t('calc.specialistQual', 'Specialist Qualification')}</span>
               </label>
               <span className="text-xs font-mono font-bold text-cyan-400">
-                €{SPECIALIST_LEVELS[level].hourlyRate}/ч
+                €{SPECIALIST_LEVELS[level].hourlyRate}/{t('calc.hours', 'h')}
               </span>
             </div>
 
@@ -378,14 +381,14 @@ export default function NordBasePricingCalculator({
                       </span>
                     </div>
                     <div className="text-[11px] font-bold truncate">
-                      {tier.code === "L1" ? "Amateur" : tier.code === "L2" ? "Professional" : "Expert"}
+                      {t(`calc.level${lvlKey}Name`, tier.nameEn)}
                     </div>
                   </button>
                 );
               })}
             </div>
             <p className="text-[11px] text-slate-400">
-              {SPECIALIST_LEVELS[level].description}
+              {t(`calc.level${level}Desc`, SPECIALIST_LEVELS[level].description)}
             </p>
           </div>
 
@@ -394,10 +397,10 @@ export default function NordBasePricingCalculator({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-blue-400" />
-                <span>4. Время выполнения (часы, мин. 2ч)</span>
+                <span>{t('calc.hoursExec', 'Execution Time (hours, min 2h)')}</span>
               </label>
               <span className="text-xs font-mono font-bold text-white bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-700">
-                {hours} ч = €{result.laborCost.toFixed(2)}
+                {hours} {t('calc.hours', 'h')} = €{result.laborCost.toFixed(2)}
               </span>
             </div>
 
@@ -441,12 +444,12 @@ export default function NordBasePricingCalculator({
                       : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
                   }`}
                 >
-                  {h}ч
+                  {h}{t('calc.hours', 'h')}
                 </button>
               ))}
             </div>
             <p className="text-[11px] text-slate-400">
-              💡 Расчет строится строго по затраченному времени. Покупка материалов согласуется с клиентом отдельно.
+              💡 {t('calc.hourlyNote', 'The calculation is based strictly on elapsed time. Material purchases are agreed separately.')}
             </p>
           </div>
         </div>
@@ -457,10 +460,10 @@ export default function NordBasePricingCalculator({
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Прозрачный Почасовой Расчет</span>
+                <span>{t('calc.transparentHourly', 'Transparent Hourly Calculation')}</span>
               </span>
               <span className="text-[11px] font-mono text-cyan-400 font-semibold truncate max-w-[200px]">
-                {result.category}
+                {t(`categories.${result.category}`, result.category)}
               </span>
             </div>
 
@@ -468,9 +471,9 @@ export default function NordBasePricingCalculator({
             <div className="space-y-2.5 mt-3 text-xs">
               {/* Category & Subcategory info */}
               <div className="flex justify-between items-center py-1 border-b border-white/5">
-                <span className="text-slate-400">Категория / Подкатегория</span>
+                <span className="text-slate-400">{t('calc.categorySubcat', 'Category / Subcategory')}</span>
                 <span className="font-semibold text-cyan-300 text-right">
-                  {result.category} • {result.subcategory}
+                  {t(`categories.${result.category}`, result.category)} • {t(`specialties.${result.subcategory}`, result.subcategory)}
                 </span>
               </div>
 
@@ -478,11 +481,11 @@ export default function NordBasePricingCalculator({
               <div className="flex justify-between items-center py-1">
                 <div className="flex flex-col">
                   <span className="text-slate-300 font-medium">
-                    Оплата за время ({result.hours} ч × €{result.hourlyRate})
+                    {t('calc.timePayment', 'Labor Payment ({{hours}}h × €{{rate}})', { hours: result.hours, rate: result.hourlyRate })}
                   </span>
                   {result.isMinLaborApplied && (
                     <span className="text-[10px] text-amber-400 font-medium">
-                      ⚠️ Сработал минимальный заказ (€50)
+                      ⚠️ {t('calc.minOrderTriggered', 'Minimum order applied (€50)')}
                     </span>
                   )}
                 </div>
@@ -493,7 +496,7 @@ export default function NordBasePricingCalculator({
 
               {/* Total Order Cost (Highlight) */}
               <div className="flex justify-between items-center py-2 px-3 rounded-xl bg-slate-900 border border-cyan-500/30">
-                <span className="font-bold text-white text-sm">Итого клиенту</span>
+                <span className="font-bold text-white text-sm">{t('calc.totalToCust', 'Total to Customer')}</span>
                 <span className="font-mono font-black text-cyan-400 text-lg">
                   €{result.totalOrderCost.toFixed(2)}
                 </span>
@@ -503,7 +506,7 @@ export default function NordBasePricingCalculator({
               <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5 mt-2">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-300">Стоимость лида (NordBase)</span>
+                    <span className="font-bold text-slate-300">{t('calc.leadCost', 'Lead Cost (NordBase)')}</span>
                     <span className="text-[10px] font-mono bg-cyan-500/10 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/20">
                       {result.leadFeePercentage}%
                     </span>
@@ -515,7 +518,7 @@ export default function NordBasePricingCalculator({
 
                 {/* Tier Explanation Badge */}
                 <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-white/5">
-                  <span>Шкала тарифа:</span>
+                  <span>{t('calc.rateScale', 'Rate Scale:')}</span>
                   <span className="font-mono text-slate-300 font-medium">
                     {result.leadTierText}
                   </span>
@@ -525,9 +528,9 @@ export default function NordBasePricingCalculator({
               {/* Specialist Net Income */}
               <div className="flex justify-between items-center py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                 <div className="flex flex-col">
-                  <span className="font-bold text-emerald-300 text-xs">Доход мастера (чистыми)</span>
+                  <span className="font-bold text-emerald-300 text-xs">{t('calc.netIncome', 'Specialist Net Income')}</span>
                   <span className="text-[10px] text-emerald-400/80 font-mono">
-                    (эффективная ставка: €{result.effectiveSpecialistRate}/ч)
+                    ({t('calc.effectiveRate', 'effective rate: €{{rate}}/h', { rate: result.effectiveSpecialistRate.toFixed(2) })})
                   </span>
                 </div>
                 <span className="font-mono font-black text-emerald-400 text-base">
@@ -547,12 +550,12 @@ export default function NordBasePricingCalculator({
               {copied ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-300">Скопировано!</span>
+                  <span className="text-emerald-300">{t('calc.copied', 'Copied!')}</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-4 h-4 text-slate-400" />
-                  <span>Копировать для Клиента/Мастера</span>
+                  <span>{t('calc.copyBtn', 'Copy for Customer/Specialist')}</span>
                 </>
               )}
             </button>
@@ -563,7 +566,7 @@ export default function NordBasePricingCalculator({
                 onClick={() => onApply(result)}
                 className="py-2.5 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md active:scale-98"
               >
-                <span>Применить к заказу</span>
+                <span>{t('calc.applyBtn', 'Apply to order')}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
