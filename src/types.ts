@@ -484,4 +484,181 @@ export interface AppState {
   suggestions?: SuggestionComplaint[];
   partnerApplications?: PartnerApplication[];
   hubs?: TerritorialHub[];
+
+  // NordBase Centralized Pricing Engine Extension
+  pricingConfig?: TerritoryPricingConfig;
+  regionalPricingConfigs?: TerritoryPricingConfig[];
+  pricingProposals?: PricingProposal[];
+  pricingAuditLogs?: PricingAuditLog[];
+}
+
+// --- Pricing Engine Core Types ---
+
+export type PricingCalculationType = 'STANDARD' | 'GROUP' | 'TRANSPORT' | 'COMBINED' | 'TRANSPORT_GROUP';
+
+export type VehicleTypeId =
+  | 'car'
+  | 'passenger_car'
+  | 'taxi_transfer'
+  | 'motorcycle'
+  | 'van'
+  | 'large_van'
+  | 'small_truck'
+  | 'medium_truck'
+  | 'large_truck'
+  | 'lorry'
+  | 'articulated_truck'
+  | 'minibus'
+  | 'bus'
+  | 'other';
+
+export interface VehicleTypeInfo {
+  id: VehicleTypeId;
+  name: string;
+  category: 'passenger' | 'cargo' | 'special';
+  coefficient: number; // e.g. 1.0, 1.25, 1.5, 1.8, 2.2, 2.8, 3.5, etc.
+  baseKmRateCents: number; // in cents (e.g. 100 cents = €1.00)
+  baseHourRateCents: number; // in cents (e.g. 1500 cents = €15.00)
+  operatingCostPerKmCents: number; // e.g. 45 cents/km
+}
+
+export interface CategorySpecialistRate {
+  category: ServiceCategory;
+  standardRateCents: number; // €/hr for STANDARD (Amateur)
+  proRateCents: number;      // €/hr for PRO (Professional)
+  expertRateCents: number;   // €/hr for EXPERT (Expert)
+}
+
+export interface LongJobTier {
+  minHours: number; // e.g. 4
+  discountPercentage: number; // e.g. 10%
+  hourlyRateMultiplier: number; // e.g. 0.90
+}
+
+export interface MinimumBookingConfig {
+  minimumBillableHours: number; // e.g. 2
+  minimumLaborCostCents: number; // e.g. 5000 = €50.00
+}
+
+export interface PricingExtraItem {
+  id: string;
+  name: string;
+  description?: string;
+  calculationType: 'fixed' | 'per_km' | 'per_hour' | 'per_floor' | 'percentage';
+  valueCents: number; // in cents or basis points for percentage
+  active: boolean;
+  territoryScope: 'global' | 'region' | 'hub';
+  categoryScope?: ServiceCategory | 'ALL';
+}
+
+export interface TerritoryPricingConfig {
+  id: string;
+  scope: 'global' | 'region' | 'hub';
+  territoryName: string; // e.g. 'Portugal', 'Algarve', 'Portimão Hub'
+  regionName?: string;
+  hubId?: string;
+  
+  minimumBooking: MinimumBookingConfig;
+  longJobTier: LongJobTier;
+  
+  categoryRates: CategorySpecialistRate[];
+  vehicleTypes: VehicleTypeInfo[];
+  extras: PricingExtraItem[];
+  
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export type ProposalStatus = 'DRAFT' | 'PROPOSED' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'ARCHIVED';
+
+export interface PricingProposal {
+  id: string;
+  proposedByUserId: string;
+  proposedByName: string;
+  proposedByRole: UserRole;
+  territoryScope: 'region' | 'hub';
+  territoryName: string;
+  regionName: string;
+  hubId?: string;
+  
+  changesSummary: string;
+  proposedConfig: Partial<TerritoryPricingConfig>;
+  
+  status: ProposalStatus;
+  reviewedByUserId?: string;
+  reviewedByName?: string;
+  reviewNotes?: string;
+  
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PricingAuditLog {
+  id: string;
+  who: string;
+  role: UserRole;
+  timestamp: string;
+  scope: string; // e.g. "Global / Portugal" or "Algarve Region"
+  previousValue: string;
+  newValue: string;
+  reason: string;
+}
+
+export interface DriverCalculationInput {
+  vehicleTypeId: VehicleTypeId;
+  pickupDistanceKm: number;
+  loadedDistanceKm: number;
+  returnDistanceKm: number;
+  returnPolicy: 'full_return' | 'half_return' | 'no_return';
+  
+  drivingTimeHours: number;
+  loadingTimeHours: number;
+  unloadingTimeHours: number;
+  waitingTimeHours: number;
+  
+  passengersCount?: number;
+  isRoundTrip?: boolean;
+  
+  helpersCount: number;
+  helperLevel: QualificationLevel;
+  
+  stairsFlights?: number;
+  heavyItemsCount?: number;
+  tollsCostEuro?: number;
+  selectedExtraIds?: string[];
+  
+  region?: string;
+  hubId?: string;
+}
+
+export interface DriverCalculationResult {
+  calculationType: PricingCalculationType;
+  vehicleType: VehicleTypeInfo;
+  
+  billableDistanceKm: number;
+  pickupDistanceKm: number;
+  loadedDistanceKm: number;
+  returnDistanceKm: number;
+  distanceCostEuro: number;
+  
+  totalHours: number;
+  drivingTimeHours: number;
+  loadingTimeHours: number;
+  unloadingTimeHours: number;
+  waitingTimeHours: number;
+  timeCostEuro: number;
+  
+  helpersCount: number;
+  helpersCostEuro: number;
+  
+  extrasCostEuro: number;
+  tollsCostEuro: number;
+  
+  totalCustomerPriceEuro: number;
+  estimatedOperatingCostEuro: number;
+  nordbaseLeadFeeEuro: number;
+  expectedGrossEarningsEuro: number;
+  estimatedNetEarningsEuro: number;
+  
+  breakdownTexts: string[];
 }

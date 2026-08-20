@@ -69,6 +69,7 @@ import { KnowledgeEvolutionPanel } from "./KnowledgeEvolutionPanel";
 import TerritorialHubsManager from "./TerritorialHubsManager";
 import NetworkPortugalControlCenter from "./NetworkPortugalControlCenter";
 import CalculatorsPage from './calculators/CalculatorsPage';
+import PricingEngineManager from './pricing/PricingEngineManager';
 import NordBasePricingCalculator from "./NordBasePricingCalculator";
 
 export type SuperAdminModule = "network" | "personnel" | "operations" | "knowledge";
@@ -1033,8 +1034,9 @@ export default function SuperAdminDashboard({
 
       {/* VIEW: NORDBASE PRICING CALCULATOR */}
       {activeTab === "calculator" && (
-        <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="space-y-8 animate-in fade-in duration-300">
           <CalculatorsPage />
+          <PricingEngineManager currentUser={currentUser} />
         </div>
       )}
 

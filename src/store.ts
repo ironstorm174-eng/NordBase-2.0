@@ -2561,5 +2561,48 @@ class AppStore {
     }
     this.saveState();
   }
+
+  // --- Pricing Engine Extensions ---
+  public addPricingProposal(proposal: import('./types').PricingProposal) {
+    if (!this.state.pricingProposals) this.state.pricingProposals = [];
+    this.state.pricingProposals = [proposal, ...this.state.pricingProposals];
+    this.saveState();
+  }
+
+  public reviewPricingProposal(
+    proposalId: string,
+    status: 'APPROVED' | 'REJECTED',
+    reviewedByName: string,
+    reviewedByRole: import('./types').UserRole,
+    reviewNotes?: string
+  ) {
+    if (!this.state.pricingProposals) return;
+    const propIndex = this.state.pricingProposals.findIndex(p => p.id === proposalId);
+    if (propIndex === -1) return;
+
+    const proposal = this.state.pricingProposals[propIndex];
+    proposal.status = status;
+    proposal.reviewedByName = reviewedByName;
+    proposal.reviewNotes = reviewNotes;
+    proposal.updatedAt = new Date().toISOString();
+
+    if (status === 'APPROVED') {
+      // Create audit log
+      if (!this.state.pricingAuditLogs) this.state.pricingAuditLogs = [];
+      const auditLog: import('./types').PricingAuditLog = {
+        id: `audit-${Date.now()}`,
+        who: reviewedByName,
+        role: reviewedByRole,
+        timestamp: new Date().toISOString(),
+        scope: proposal.territoryName || 'Algarve',
+        previousValue: 'Baseline Reference Pricing',
+        newValue: proposal.changesSummary,
+        reason: reviewNotes || 'Proposal Approved'
+      };
+      this.state.pricingAuditLogs = [auditLog, ...this.state.pricingAuditLogs];
+    }
+
+    this.saveState();
+  }
 }
 export const store = new AppStore();

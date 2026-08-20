@@ -40,6 +40,7 @@ import Academy from "./Academy";
 import { KnowledgeEvolutionPanel } from "./KnowledgeEvolutionPanel";
 import TerritorialHubsManager from "./TerritorialHubsManager";
 import CalculatorsPage from './calculators/CalculatorsPage';
+import PricingEngineManager from './pricing/PricingEngineManager';
 import NordBasePricingCalculator from "./NordBasePricingCalculator";
 import { store } from "../store";
 interface AdminDashboardProps {
@@ -446,8 +447,9 @@ export default function AdminDashboard({
 
       {/* VIEW: NORDBASE PRICING CALCULATOR */}
       {activeTab === "calculator" && (
-        <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="space-y-8 animate-in fade-in duration-300">
           <CalculatorsPage />
+          <PricingEngineManager currentUser={currentUser} />
         </div>
       )}
 

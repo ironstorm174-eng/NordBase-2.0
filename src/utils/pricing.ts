@@ -1,5 +1,14 @@
 export type SpecialistLevelKey = 'L1' | 'L2' | 'L3';
 
+import {
+  DEFAULT_PORTUGAL_PRICING_CONFIG,
+  calculateDriverTransportPrice,
+  calculateNordBaseLeadFeeEuro
+} from './pricingEngine';
+import { TerritoryPricingConfig } from '../types';
+
+export { DEFAULT_PORTUGAL_PRICING_CONFIG, calculateDriverTransportPrice, calculateNordBaseLeadFeeEuro };
+
 export const SPECIALIST_LEVELS: Record<SpecialistLevelKey, { label: string; hourlyRate: number }> = {
   L1: { label: 'Amateur', hourlyRate: 20 },
   L2: { label: 'Professional', hourlyRate: 25 },
@@ -7,34 +16,31 @@ export const SPECIALIST_LEVELS: Record<SpecialistLevelKey, { label: string; hour
 };
 
 export function calculateLeadPrice(workValue: number) {
-  const value = Math.max(50, Math.round(workValue));
-  let fee = 0;
-  let formulaText = '';
-
-  if (value <= 100) {
-    fee = Math.max(10, value * 0.20);
-    formulaText = '20% (min €10)';
-  } else if (value <= 200) {
-    fee = Math.max(20, value * 0.15);
-    formulaText = '15% (min €20)';
-  } else {
-    fee = Math.max(30, value * 0.10);
-    formulaText = '10% (min €30)';
-  }
-
-  fee = Math.round(fee * 100) / 100;
-  const tpShare = Number((fee * 0.40).toFixed(2));
-
-  return { leadFee: fee, tpShare, formulaText, value };
+  return calculateNordBaseLeadFeeEuro(workValue);
 }
 
-export function calculateWorkPrice(hoursPerSpecialist: number, numSpecialists: number, level: SpecialistLevelKey) {
-  const safeHours = Math.max(2, hoursPerSpecialist);
+export function calculateWorkPrice(
+  hoursPerSpecialist: number,
+  numSpecialists: number,
+  level: SpecialistLevelKey,
+  config: TerritoryPricingConfig = DEFAULT_PORTUGAL_PRICING_CONFIG
+) {
+  const minBillableHours = config?.minimumBooking?.minimumBillableHours || 2;
+  const safeHours = Math.max(minBillableHours, hoursPerSpecialist);
   const safeSpecs = Math.max(1, numSpecialists);
   const totalHours = safeHours * safeSpecs;
-  const rate = SPECIALIST_LEVELS[level].hourlyRate;
+  
+  let rate = SPECIALIST_LEVELS[level].hourlyRate;
+  if (config?.categoryRates && config.categoryRates.length > 0) {
+    const defaultCat = config.categoryRates[0];
+    if (level === 'L1') rate = defaultCat.standardRateCents / 100;
+    if (level === 'L2') rate = defaultCat.proRateCents / 100;
+    if (level === 'L3') rate = defaultCat.expertRateCents / 100;
+  }
+  
   const rawWorkCost = totalHours * rate;
-  const workCost = Math.max(50, rawWorkCost);
+  const minCost = (config?.minimumBooking?.minimumLaborCostCents || 5000) / 100;
+  const workCost = Math.max(minCost, rawWorkCost);
   const isMinLaborApplied = workCost > rawWorkCost;
 
   return { totalHours, rate, rawWorkCost, workCost, isMinLaborApplied };
