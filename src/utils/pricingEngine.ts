@@ -179,13 +179,12 @@ export function calculateDriverTransportPrice(
   }
   
   // 6. Economics for Driver
-  const operatingCostEuro = Math.round(billableDistanceKm * (vehicle.operatingCostPerKmCents / 100) * 100) / 100;
   const leadFeeInfo = calculateNordBaseLeadFeeEuro(totalCustomerPriceEuro);
   const nordbaseLeadFeeEuro = leadFeeInfo.leadFeeEuro;
   
   const expectedGrossEarningsEuro = totalCustomerPriceEuro;
   const estimatedNetEarningsEuro = totalCustomerPriceEuro > 0
-    ? Math.max(0, Math.round((expectedGrossEarningsEuro - operatingCostEuro - nordbaseLeadFeeEuro - helpersCostEuro) * 100) / 100)
+    ? Math.max(0, Math.round((expectedGrossEarningsEuro - nordbaseLeadFeeEuro - helpersCostEuro) * 100) / 100)
     : 0;
   
   const calcType: PricingCalculationType = helpersCount > 0 ? 'TRANSPORT_GROUP' : 'TRANSPORT';
@@ -197,8 +196,7 @@ export function calculateDriverTransportPrice(
     helpersCount > 0 ? `Helpers (${helpersCount} × ${helperHours}h @ €${helperRateEuro}/h) = €${helpersCostEuro.toFixed(2)}` : 'Driver only',
     extrasCostEuro > 0 ? `Extras & Special Handling = €${extrasCostEuro.toFixed(2)}` : '',
     tollsCostEuro > 0 ? `Tolls & Road Fees = €${tollsCostEuro.toFixed(2)}` : '',
-    totalCustomerPriceEuro > 0 ? `NordBase Lead Fee: €${nordbaseLeadFeeEuro.toFixed(2)} (${leadFeeInfo.formulaText})` : '',
-    operatingCostEuro > 0 ? `Operating Expenses (Fuel/Maint): €${operatingCostEuro.toFixed(2)}` : ''
+    totalCustomerPriceEuro > 0 ? `NordBase Lead Fee: €${nordbaseLeadFeeEuro.toFixed(2)} (${leadFeeInfo.formulaText})` : ''
   ].filter(Boolean);
 
   return {
@@ -220,7 +218,7 @@ export function calculateDriverTransportPrice(
     extrasCostEuro,
     tollsCostEuro,
     totalCustomerPriceEuro,
-    estimatedOperatingCostEuro: operatingCostEuro,
+    estimatedOperatingCostEuro: 0,
     nordbaseLeadFeeEuro,
     expectedGrossEarningsEuro,
     estimatedNetEarningsEuro,

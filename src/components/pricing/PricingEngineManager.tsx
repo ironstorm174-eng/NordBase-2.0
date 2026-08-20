@@ -215,7 +215,6 @@ export default function PricingEngineManager({ currentUser }: Props) {
                     <th className="p-2.5">Coefficient</th>
                     <th className="p-2.5">Base €/km</th>
                     <th className="p-2.5">Base €/hour</th>
-                    <th className="p-2.5">Operating Cost/km</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50 font-mono">
@@ -226,7 +225,6 @@ export default function PricingEngineManager({ currentUser }: Props) {
                       <td className="p-2.5 text-cyan-400 font-bold">{v.coefficient.toFixed(2)}×</td>
                       <td className="p-2.5">€{(v.baseKmRateCents / 100).toFixed(2)}</td>
                       <td className="p-2.5">€{(v.baseHourRateCents / 100).toFixed(2)}</td>
-                      <td className="p-2.5 text-slate-400">€{(v.operatingCostPerKmCents / 100).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>

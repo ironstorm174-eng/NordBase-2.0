@@ -417,7 +417,7 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                 €{result.estimatedNetEarningsEuro.toFixed(2)}
               </div>
               <p className="text-[11px] text-emerald-300/80">
-                {t('calc.afterExpenses', 'Clean profit after fuel/maintenance & lead fee')}
+                {t('calc.afterLeadFee', 'Clean profit after NordBase lead fee')}
               </p>
             </div>
 
@@ -426,11 +426,6 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
               <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
                 <span className="text-slate-400">{t('calc.customerRecommendedPrice', 'Customer Price (Gross)')}</span>
                 <span className="font-bold text-white font-mono text-sm">€{result.totalCustomerPriceEuro.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
-                <span className="text-slate-400">{t('calc.operatingExpenses', 'Operating Cost (Fuel/Maint)')}</span>
-                <span className="font-mono text-amber-400">-€{result.estimatedOperatingCostEuro.toFixed(2)}</span>
               </div>
 
               <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
