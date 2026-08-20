@@ -78,6 +78,9 @@ export const DEFAULT_PORTUGAL_PRICING_CONFIG: TerritoryPricingConfig = {
  * Calculates lead fee based on total order value in Euro
  */
 export function calculateNordBaseLeadFeeEuro(orderValueEuro: number): { leadFeeEuro: number; formulaText: string } {
+  if (!orderValueEuro || orderValueEuro <= 0) {
+    return { leadFeeEuro: 0, formulaText: '0%' };
+  }
   const value = Math.max(50, Math.round(orderValueEuro));
   let fee = 0;
   let formulaText = '';
@@ -167,9 +170,13 @@ export function calculateDriverTransportPrice(
   
   // 5. Total Customer Recommended Price
   const rawTotalPrice = distanceCostEuro + timeCostEuro + helpersCostEuro + extrasCostEuro + tollsCostEuro;
-  // Apply minimum order pricing if applicable
-  const minOrderEuro = (config.minimumBooking?.minimumLaborCostCents || 5000) / 100;
-  const totalCustomerPriceEuro = Math.max(minOrderEuro, Math.round(rawTotalPrice * 100) / 100);
+  
+  let totalCustomerPriceEuro = 0;
+  if (rawTotalPrice > 0) {
+    // Apply minimum order pricing if transport or labor is actually requested
+    const minOrderEuro = (config.minimumBooking?.minimumLaborCostCents || 5000) / 100;
+    totalCustomerPriceEuro = Math.max(minOrderEuro, Math.round(rawTotalPrice * 100) / 100);
+  }
   
   // 6. Economics for Driver
   const operatingCostEuro = Math.round(billableDistanceKm * (vehicle.operatingCostPerKmCents / 100) * 100) / 100;
@@ -177,19 +184,21 @@ export function calculateDriverTransportPrice(
   const nordbaseLeadFeeEuro = leadFeeInfo.leadFeeEuro;
   
   const expectedGrossEarningsEuro = totalCustomerPriceEuro;
-  const estimatedNetEarningsEuro = Math.max(0, Math.round((expectedGrossEarningsEuro - operatingCostEuro - nordbaseLeadFeeEuro) * 100) / 100);
+  const estimatedNetEarningsEuro = totalCustomerPriceEuro > 0
+    ? Math.max(0, Math.round((expectedGrossEarningsEuro - operatingCostEuro - nordbaseLeadFeeEuro - helpersCostEuro) * 100) / 100)
+    : 0;
   
   const calcType: PricingCalculationType = helpersCount > 0 ? 'TRANSPORT_GROUP' : 'TRANSPORT';
   
   const breakdownTexts: string[] = [
     `Vehicle: ${vehicle.name} (Coeff ${vehicle.coefficient.toFixed(2)})`,
-    `Distance (${billableDistanceKm.toFixed(1)} km billable @ €${kmRateEuro.toFixed(2)}/km) = €${distanceCostEuro.toFixed(2)}`,
-    `Time (${totalHours.toFixed(1)} hrs @ €${hourRateEuro.toFixed(2)}/hr) = €${timeCostEuro.toFixed(2)}`,
+    billableDistanceKm > 0 ? `Distance (${billableDistanceKm.toFixed(1)} km billable @ €${kmRateEuro.toFixed(2)}/km) = €${distanceCostEuro.toFixed(2)}` : 'Distance: 0.0 km = €0.00',
+    totalHours > 0 ? `Time (${totalHours.toFixed(1)} hrs @ €${hourRateEuro.toFixed(2)}/hr) = €${timeCostEuro.toFixed(2)}` : 'Time: 0.0 hrs = €0.00',
     helpersCount > 0 ? `Helpers (${helpersCount} × ${helperHours}h @ €${helperRateEuro}/h) = €${helpersCostEuro.toFixed(2)}` : 'Driver only',
     extrasCostEuro > 0 ? `Extras & Special Handling = €${extrasCostEuro.toFixed(2)}` : '',
     tollsCostEuro > 0 ? `Tolls & Road Fees = €${tollsCostEuro.toFixed(2)}` : '',
-    `NordBase Lead Fee: €${nordbaseLeadFeeEuro.toFixed(2)} (${leadFeeInfo.formulaText})`,
-    `Operating Expenses (Fuel/Maint): €${operatingCostEuro.toFixed(2)}`
+    totalCustomerPriceEuro > 0 ? `NordBase Lead Fee: €${nordbaseLeadFeeEuro.toFixed(2)} (${leadFeeInfo.formulaText})` : '',
+    operatingCostEuro > 0 ? `Operating Expenses (Fuel/Maint): €${operatingCostEuro.toFixed(2)}` : ''
   ].filter(Boolean);
 
   return {

@@ -13,25 +13,25 @@ interface Props {
 export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORTUGAL_PRICING_CONFIG, onApplyEstimate, isCompact = false }: Props) {
   const { t } = useTranslation();
 
-  // Input states
-  const [vehicleTypeId, setVehicleTypeId] = useState<VehicleTypeId>('van');
+  // Input states - Defaults to 0 and Standard Car ('car') on start
+  const [vehicleTypeId, setVehicleTypeId] = useState<VehicleTypeId>('car');
   
-  const [pickupDistanceKm, setPickupDistanceKm] = useState<number>(10);
-  const [loadedDistanceKm, setLoadedDistanceKm] = useState<number>(35);
-  const [returnDistanceKm, setReturnDistanceKm] = useState<number>(35);
-  const [returnPolicy, setReturnPolicy] = useState<'full_return' | 'half_return' | 'no_return'>('half_return');
+  const [pickupDistanceKm, setPickupDistanceKm] = useState<number>(0);
+  const [loadedDistanceKm, setLoadedDistanceKm] = useState<number>(0);
+  const [returnDistanceKm, setReturnDistanceKm] = useState<number>(0);
+  const [returnPolicy, setReturnPolicy] = useState<'full_return' | 'half_return' | 'no_return'>('full_return');
 
-  const [drivingTimeHours, setDrivingTimeHours] = useState<number>(1.0);
-  const [loadingTimeHours, setLoadingTimeHours] = useState<number>(0.5);
-  const [unloadingTimeHours, setUnloadingTimeHours] = useState<number>(0.5);
-  const [waitingTimeHours, setWaitingTimeHours] = useState<number>(0.0);
+  const [drivingTimeHours, setDrivingTimeHours] = useState<number>(0);
+  const [loadingTimeHours, setLoadingTimeHours] = useState<number>(0);
+  const [unloadingTimeHours, setUnloadingTimeHours] = useState<number>(0);
+  const [waitingTimeHours, setWaitingTimeHours] = useState<number>(0);
 
-  const [helpersCount, setHelpersCount] = useState<number>(1);
+  const [helpersCount, setHelpersCount] = useState<number>(0);
   const [helperLevel, setHelperLevel] = useState<QualificationLevel>('amateur');
 
   const [stairsFlights, setStairsFlights] = useState<number>(0);
   const [heavyItemsCount, setHeavyItemsCount] = useState<number>(0);
-  const [tollsCostEuro, setTollsCostEuro] = useState<number>(5.0);
+  const [tollsCostEuro, setTollsCostEuro] = useState<number>(0);
 
   // Calculation memo
   const result = useMemo(() => {
@@ -150,8 +150,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   type="number"
                   min="0"
                   max="500"
-                  value={pickupDistanceKm}
-                  onChange={e => setPickupDistanceKm(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0"
+                  value={pickupDistanceKm === 0 ? '' : pickupDistanceKm}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setPickupDistanceKm(isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -162,8 +166,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   type="number"
                   min="0"
                   max="1000"
-                  value={loadedDistanceKm}
-                  onChange={e => setLoadedDistanceKm(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0"
+                  value={loadedDistanceKm === 0 ? '' : loadedDistanceKm}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setLoadedDistanceKm(isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -174,8 +182,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   type="number"
                   min="0"
                   max="1000"
-                  value={returnDistanceKm}
-                  onChange={e => setReturnDistanceKm(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0"
+                  value={returnDistanceKm === 0 ? '' : returnDistanceKm}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setReturnDistanceKm(isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -226,8 +238,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   step="0.5"
                   min="0"
                   max="24"
-                  value={drivingTimeHours}
-                  onChange={e => setDrivingTimeHours(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0"
+                  value={drivingTimeHours === 0 ? '' : drivingTimeHours}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setDrivingTimeHours(isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -239,8 +255,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   step="0.5"
                   min="0"
                   max="24"
-                  value={loadingTimeHours}
-                  onChange={e => setLoadingTimeHours(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0"
+                  value={loadingTimeHours === 0 ? '' : loadingTimeHours}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setLoadingTimeHours(isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -252,8 +272,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   step="0.5"
                   min="0"
                   max="24"
-                  value={unloadingTimeHours}
-                  onChange={e => setUnloadingTimeHours(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0"
+                  value={unloadingTimeHours === 0 ? '' : unloadingTimeHours}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setUnloadingTimeHours(isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -265,8 +289,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   step="0.5"
                   min="0"
                   max="24"
-                  value={waitingTimeHours}
-                  onChange={e => setWaitingTimeHours(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0"
+                  value={waitingTimeHours === 0 ? '' : waitingTimeHours}
+                  onChange={e => {
+                    const val = parseFloat(e.target.value);
+                    setWaitingTimeHours(isNaN(val) ? 0 : Math.max(0, val));
+                  }}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -326,8 +354,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   <input
                     type="number"
                     min="0"
-                    value={stairsFlights}
-                    onChange={e => setStairsFlights(Math.max(0, parseInt(e.target.value) || 0))}
+                    placeholder="0"
+                    value={stairsFlights === 0 ? '' : stairsFlights}
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10);
+                      setStairsFlights(isNaN(val) ? 0 : Math.max(0, val));
+                    }}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -337,8 +369,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   <input
                     type="number"
                     min="0"
-                    value={heavyItemsCount}
-                    onChange={e => setHeavyItemsCount(Math.max(0, parseInt(e.target.value) || 0))}
+                    placeholder="0"
+                    value={heavyItemsCount === 0 ? '' : heavyItemsCount}
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10);
+                      setHeavyItemsCount(isNaN(val) ? 0 : Math.max(0, val));
+                    }}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -348,8 +384,12 @@ export default function DriverTransportCalculator({ pricingConfig = DEFAULT_PORT
                   <input
                     type="number"
                     min="0"
-                    value={tollsCostEuro}
-                    onChange={e => setTollsCostEuro(Math.max(0, parseFloat(e.target.value) || 0))}
+                    placeholder="0"
+                    value={tollsCostEuro === 0 ? '' : tollsCostEuro}
+                    onChange={e => {
+                      const val = parseFloat(e.target.value);
+                      setTollsCostEuro(isNaN(val) ? 0 : Math.max(0, val));
+                    }}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
