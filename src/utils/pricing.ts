@@ -16,7 +16,16 @@ export const SPECIALIST_LEVELS: Record<SpecialistLevelKey, { label: string; hour
 };
 
 export function calculateLeadPrice(workValue: number) {
-  return calculateNordBaseLeadFeeEuro(workValue);
+  const result = calculateNordBaseLeadFeeEuro(workValue);
+  const fee = result.leadFeeEuro;
+  const tpShare = Number((fee * 0.40).toFixed(2));
+  return {
+    leadFee: fee,
+    leadFeeEuro: fee,
+    tpShare,
+    formulaText: result.formulaText,
+    value: Math.max(50, Math.round(workValue))
+  };
 }
 
 export function calculateWorkPrice(
