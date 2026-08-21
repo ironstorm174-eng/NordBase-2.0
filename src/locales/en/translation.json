@@ -688,5 +688,26 @@
     "levelL2Desc": "Experienced specialist, complex assembly and service tasks",
     "levelL3Name": "L3 Expert",
     "levelL3Desc": "Highest qualification, critical engineering systems"
+  },
+  "estimator": {
+    "badge": "Instant Estimate",
+    "title": "How much will your job cost?",
+    "subtitle": "Get a quick estimate of the labour cost.",
+    "calculateEstimate": "Calculate Cost",
+    "hideEstimate": "Hide Calculator",
+    "step1Label": "1. How many hours do you expect?",
+    "step2Label": "2. Choose specialist level",
+    "hourSingular": "hour",
+    "hourPlural": "hours",
+    "hoursRangeHint": "Flexible selection from 1 to 12 hours.",
+    "amateur": "Amateur",
+    "professional": "Professional",
+    "expert": "Expert",
+    "estimatedLabourCost": "Estimated labour cost:",
+    "describeProblemCTA": "Describe your problem →",
+    "disclaimer": "Preliminary estimate. Materials and special expenses are not included.",
+    "teamTitle": "Need more than one specialist?",
+    "teamSubtitle": "Some jobs require a team. You can request 2 or more specialists for your job.",
+    "requestTeamLink": "Request a team →"
   }
 }

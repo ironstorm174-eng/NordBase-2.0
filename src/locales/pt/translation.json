@@ -688,5 +688,26 @@
     "levelL2Desc": "Especialista experiente, tarefas complexas de montagem e serviço",
     "levelL3Name": "L3 Especialista",
     "levelL3Desc": "Qualificação mais alta, sistemas de engenharia críticos"
+  },
+  "estimator": {
+    "badge": "Estimativa Rápida",
+    "title": "Quanto custará o seu serviço?",
+    "subtitle": "Obtenha uma estimativa rápida do custo do trabalho.",
+    "calculateEstimate": "Calcular Custo",
+    "hideEstimate": "Ocultar Calculadora",
+    "step1Label": "1. Quantas horas prevê?",
+    "step2Label": "2. Escolha o nível do especialista",
+    "hourSingular": "hora",
+    "hourPlural": "horas",
+    "hoursRangeHint": "Seleção flexível de 1 a 12 horas.",
+    "amateur": "Iniciante",
+    "professional": "Profissional",
+    "expert": "Especialista",
+    "estimatedLabourCost": "Custo estimado do trabalho:",
+    "describeProblemCTA": "Descreva o seu problema →",
+    "disclaimer": "Estimativa preliminar. Materiais e despesas especiais não incluídos.",
+    "teamTitle": "Precisa de mais do que um especialista?",
+    "teamSubtitle": "Alguns trabalhos requerem uma equipa. Pode solicitar 2 ou mais especialistas.",
+    "requestTeamLink": "Solicitar uma equipa →"
   }
 }
