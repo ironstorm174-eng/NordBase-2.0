@@ -5,6 +5,7 @@
 import { AITranslatedMessage } from './AITranslatedMessage';
 import { AIMessagePolisher } from './AIMessagePolisher';
 import MarketplaceView from './MarketplaceView';
+import JobCostEstimator from './JobCostEstimator';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
@@ -1054,7 +1055,7 @@ const getRegionMetadata = (regionId: string, name: string) => {
       <div className="w-full min-h-screen animate-in fade-in duration-500 pb-12 pt-1 sm:pt-12" id="homepage-view">
         <div className="max-w-4xl mx-auto px-4">
           
-          <div className="flex flex-col items-center space-y-1.5 sm:space-y-3 mb-6 sm:mb-10 text-center">
+          <div className="flex flex-col items-center space-y-1.5 sm:space-y-3 mb-6 sm:mb-10 text-center" id="hero-section">
             {currentUser && onOpenDashboard && (
               <div className="mb-2 bg-gradient-to-r from-cyan-950/80 to-blue-950/80 border border-cyan-500/30 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-lg animate-in fade-in slide-in-from-top-2">
                 <span className="text-xs text-cyan-200">
@@ -1156,6 +1157,33 @@ const getRegionMetadata = (regionId: string, name: string) => {
               ));
             })()}
           </div>
+
+          {/* Job Cost Estimator for Homepage */}
+          <JobCostEstimator
+            onDescribeProblem={() => {
+              if (!selectedCategory) {
+                onSelectCategory('Home Services');
+              }
+              const el = document.getElementById('categories-section') || document.getElementById('hero-section');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            onRequestTeam={() => {
+              if (!selectedCategory) {
+                onSelectCategory('Home Services');
+              }
+              const el = document.getElementById('categories-section') || document.getElementById('hero-section');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+          />
+
           {/* How It Works Section */}
           <div className="mt-12 sm:mt-20 border-t border-blue-950/40 pt-10 sm:pt-16 max-w-4xl mx-auto" id="how-it-works-section">
             <h2 className="text-xl sm:text-2xl font-black text-center text-white tracking-tight font-display">
