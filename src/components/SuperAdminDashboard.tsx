@@ -518,6 +518,42 @@ export default function SuperAdminDashboard({
       );
     }
 
+    // If updating/creating a specialist, sync with specialists array in store
+    if (userForm.role === "specialist") {
+      const currentSpecs = store.getState().specialists || [];
+      const specId = userForm.id || `user-specialist-${Date.now()}`;
+      const existingSpecIndex = currentSpecs.findIndex(s => s.id === specId || (s.phone && userForm.phone && s.phone === userForm.phone));
+      if (existingSpecIndex !== -1) {
+        const updatedSpecs = [...currentSpecs];
+        updatedSpecs[existingSpecIndex] = {
+          ...updatedSpecs[existingSpecIndex],
+          name: userForm.name.trim() || updatedSpecs[existingSpecIndex].name,
+          phone: userForm.phone.trim() || updatedSpecs[existingSpecIndex].phone,
+          city: userForm.city.trim() || updatedSpecs[existingSpecIndex].city,
+          category: (userForm.category as any) || updatedSpecs[existingSpecIndex].category,
+          tradeSkillLevel: (userForm.tradeSkillLevel as any) || updatedSpecs[existingSpecIndex].tradeSkillLevel,
+          skillsDescription: userForm.skillsDescription || updatedSpecs[existingSpecIndex].skillsDescription,
+          specialistStatus: userForm.specialistStatus || updatedSpecs[existingSpecIndex].specialistStatus,
+        };
+        store.updateSpecialists(updatedSpecs);
+      } else {
+        const newSpec: Specialist = {
+          id: specId,
+          name: userForm.name.trim() || "Specialist",
+          phone: userForm.phone.trim(),
+          city: userForm.city.trim() || "Portimão",
+          category: (userForm.category as any) || "Home Services",
+          categories: [(userForm.category as any) || "Home Services"],
+          rating: 5.0,
+          jobsCompleted: 0,
+          specialistStatus: userForm.specialistStatus || "approved",
+          tradeSkillLevel: (userForm.tradeSkillLevel as any) || "Expert",
+          skillsDescription: userForm.skillsDescription || "",
+        };
+        store.updateSpecialists([newSpec, ...currentSpecs]);
+      }
+    }
+
     onUpdateUsers(updatedUsers);
     setUserModalOpen(false);
     setLocalAlert({
@@ -640,14 +676,6 @@ export default function SuperAdminDashboard({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setShowCalculatorModal(true)}
-            className="bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm font-bold transition-all cursor-pointer shadow-md active:scale-98"
-            title="Калькулятор Заказа и Лида NordBase"
-          >
-            <Calculator className="w-4 h-4 text-cyan-400" />
-            <span>Калькулятор NordBase</span>
-          </button>
           <button
             onClick={() => {
               setPastedPhotoUrl(superAdminPhoto);
@@ -1044,8 +1072,12 @@ export default function SuperAdminDashboard({
 
       {/* VIEW: ALL PROFILES & FREEZE MANAGEMENT TOOL */}
       {activeTab === "all_users" && (() => {
-        // Build unified profiles list combining registered users and specialists
+        // Build comprehensive unified profiles list across all sources
+        const storeState = store.getState();
+        const partnerApplications = storeState.partnerApplications || [];
         const allProfiles: AuthUser[] = [...users];
+
+        // 1. Specialists from specialists array
         specialists.forEach(spec => {
           const exists = allProfiles.some(u => u.id === spec.id || (u.phone && spec.phone && u.phone === spec.phone));
           if (!exists) {
@@ -1063,6 +1095,52 @@ export default function SuperAdminDashboard({
               skillsDescription: spec.skillsDescription,
               verificationDocuments: spec.verificationDocuments || []
             });
+          }
+        });
+
+        // 2. Customers derived from jobs/orders
+        jobs.forEach(j => {
+          if (j.customerName || j.customerPhone) {
+            const exists = allProfiles.some(u =>
+              (u.phone && j.customerPhone && u.phone === j.customerPhone) ||
+              (u.name && j.customerName && u.name.toLowerCase() === j.customerName.toLowerCase())
+            );
+            if (!exists) {
+              allProfiles.push({
+                id: `customer-job-${j.id}`,
+                name: j.customerName || 'Customer',
+                phone: j.customerPhone || '',
+                email: j.customerPhone ? `client-${j.customerPhone.replace(/[^0-9]/g, '')}@nordbase.pt` : `customer-${j.id}@nordbase.pt`,
+                role: 'customer',
+                city: j.location || 'Portugal',
+                region: 'Portugal',
+                specialistStatus: 'not_requested'
+              });
+            }
+          }
+        });
+
+        // 3. Partner License Applicants
+        partnerApplications.forEach(app => {
+          if (app.firstName || app.email || app.phone) {
+            const appName = `${app.firstName || ''} ${app.lastName || ''}`.trim() || 'Applicant';
+            const exists = allProfiles.some(u =>
+              (u.email && app.email && u.email.toLowerCase() === app.email.toLowerCase()) ||
+              (u.phone && app.phone && u.phone === app.phone)
+            );
+            if (!exists) {
+              allProfiles.push({
+                id: app.id || `app-${Date.now()}`,
+                name: appName,
+                phone: app.phone || '',
+                email: app.email || `applicant-${app.id}@nordbase.pt`,
+                role: (app.role as any) || 'operator',
+                city: app.city || app.region || 'Portugal',
+                region: app.region || 'Portugal',
+                dashboardNumber: app.dashboardNumber || 'Pending',
+                specialistStatus: 'pending_review'
+              });
+            }
           }
         });
 
@@ -1163,7 +1241,15 @@ export default function SuperAdminDashboard({
                     Инструмент полного контроля: блокировка/заморозка и окончательное удаление аккаунтов любого типа.
                   </p>
                 </div>
-                <div className="flex items-center gap-3 self-start lg:self-auto">
+                <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto">
+                  <button
+                    onClick={() => handleOpenCreateUser()}
+                    className="flex items-center gap-2 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-cyan-600/20 cursor-pointer"
+                    title="Создать новый профиль вручную"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>+ Создать профиль</span>
+                  </button>
                   <button
                     onClick={async () => {
                       await store.syncFromServer();
@@ -1345,7 +1431,25 @@ export default function SuperAdminDashboard({
                           </div>
 
                           {/* Actions */}
-                          <div className="col-span-2 flex items-center justify-end gap-2">
+                          <div className="col-span-2 flex items-center justify-end gap-1.5">
+                            {/* Inspect / Audit Details Button */}
+                            <button
+                              onClick={() => setSelectedUserForInspection(u)}
+                              className="p-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl transition-all cursor-pointer border border-slate-700"
+                              title="Аудит и подробный инспектор профиля (Audit Profile)"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+
+                            {/* Edit Profile Button */}
+                            <button
+                              onClick={() => handleOpenEditUser(u)}
+                              className="p-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded-xl transition-all cursor-pointer border border-slate-700"
+                              title="Редактировать параметры профиля (Edit Profile)"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+
                             {/* Freeze / Unfreeze Toggle Button */}
                             <button
                               onClick={() => handleToggleBlock(u.id, isFrozen, u.name)}
@@ -1372,7 +1476,7 @@ export default function SuperAdminDashboard({
                             {/* Impersonate Switch */}
                             <button
                               onClick={() => store.impersonateUser(u)}
-                              className="p-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-xl transition-all cursor-pointer border border-slate-700"
+                              className="p-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-xl transition-all cursor-pointer border border-slate-700"
                               title="Войти под пользователем (Impersonate)"
                             >
                               <Zap className="w-4 h-4" />
